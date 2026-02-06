@@ -36,6 +36,49 @@ class AgentHistory:
         return self.lifetime < other.lifetime
 
 
+@dataclass
+class LifespanTracker:
+    """Track agent lifespan distributions over simulation."""
+    snapshot_ages: dict[int, list[int]] = field(default_factory=dict)  # timestep -> ages at that timestep
+    death_ages: list[tuple[int, int]] = field(default_factory=list)  # (timestep, age) for each death
+    snapshot_interval: int = 10  # take snapshot every N steps
+
+    def record_snapshot(self, timestep: int, ages: np.ndarray):
+        """Record ages of all living cells at this timestep."""
+        if timestep % self.snapshot_interval == 0:
+            self.snapshot_ages[timestep] = ages.tolist()
+
+    def record_deaths(self, timestep: int, ages: list[int]):
+        """Record ages of cells that just died."""
+        for age in ages:
+            self.death_ages.append((timestep, age))
+
+    def get_death_ages_up_to(self, timestep: int) -> list[int]:
+        """Get all death ages up to (and including) a given timestep."""
+        return [age for t, age in self.death_ages if t <= timestep]
+
+    def save_to_numpy(self, filepath: str):
+        """Save lifespan data to .npz file."""
+        snapshot_timesteps = np.array(sorted(self.snapshot_ages.keys()))
+
+        # Store snapshot ages as object array (variable-length lists)
+        snapshot_ages_list = [self.snapshot_ages[t] for t in snapshot_timesteps]
+
+        # Death ages with timesteps
+        death_data = np.array(self.death_ages, dtype=np.int32) if self.death_ages else np.empty((0, 2), dtype=np.int32)
+
+        np.savez(
+            filepath,
+            snapshot_timesteps=snapshot_timesteps,
+            snapshot_ages=np.array(snapshot_ages_list, dtype=object),
+            death_timesteps=death_data[:, 0] if len(death_data) > 0 else np.array([], dtype=np.int32),
+            death_ages=death_data[:, 1] if len(death_data) > 0 else np.array([], dtype=np.int32),
+            snapshot_interval=self.snapshot_interval,
+        )
+        print(f"Saved lifespan data to {filepath}")
+        print(f"  Snapshots: {len(snapshot_timesteps)}, Deaths recorded: {len(self.death_ages)}")
+
+
 class TopAgentTracker:
     """
     Tracks the top N longest-living agents using a min-heap.
@@ -135,6 +178,138 @@ class TopAgentTracker:
         plt.savefig(filepath, dpi=150, bbox_inches="tight")
         plt.close(fig)
         print(f"Saved top agents plot to {filepath}")
+
+
+def create_lifespan_animation(
+    tracker: LifespanTracker,
+    output_path: str,
+    fps: int = 5,
+):
+    """
+    Create animated GIF showing age distribution evolution.
+
+    Left panel: Living ages histogram (updates each frame)
+    Right panel: Death ages histogram (accumulates over time)
+    """
+    if not tracker.snapshot_ages:
+        print("No lifespan data to animate")
+        return
+
+    sorted_timesteps = sorted(tracker.snapshot_ages.keys())
+
+    # Determine histogram bounds
+    max_living_age = max(max(ages) if ages else 0 for ages in tracker.snapshot_ages.values())
+    max_death_age = max((age for _, age in tracker.death_ages), default=0)
+    max_age = max(max_living_age, max_death_age, 1)
+    bins = np.linspace(0, max_age + 1, min(50, max_age + 2))
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+    ax_living, ax_death = axes
+
+    def update(frame_idx):
+        timestep = sorted_timesteps[frame_idx]
+        living_ages = tracker.snapshot_ages[timestep]
+        death_ages = tracker.get_death_ages_up_to(timestep)
+
+        ax_living.clear()
+        ax_death.clear()
+
+        # Living ages histogram
+        if living_ages:
+            ax_living.hist(living_ages, bins=bins, color="steelblue", edgecolor="black", alpha=0.7)
+        ax_living.set_xlabel("Age (timesteps)")
+        ax_living.set_ylabel("Count")
+        ax_living.set_title(f"Living Cell Ages at t={timestep}")
+        ax_living.set_xlim(0, max_age + 1)
+
+        # Death ages histogram (cumulative)
+        if death_ages:
+            ax_death.hist(death_ages, bins=bins, color="coral", edgecolor="black", alpha=0.7)
+        ax_death.set_xlabel("Age at Death (timesteps)")
+        ax_death.set_ylabel("Count")
+        ax_death.set_title(f"Lifespan Distribution (deaths up to t={timestep})")
+        ax_death.set_xlim(0, max_age + 1)
+
+        fig.suptitle(f"Agent Lifespan Analysis - Step {timestep}", fontsize=12, fontweight="bold")
+        plt.tight_layout()
+
+        return []
+
+    print(f"Creating lifespan animation with {len(sorted_timesteps)} frames...")
+    anim = FuncAnimation(
+        fig,
+        update,
+        frames=len(sorted_timesteps),
+        interval=1000 // fps,
+        blit=False,
+    )
+
+    anim.save(output_path, writer="pillow", fps=fps)
+    plt.close(fig)
+    print(f"Saved lifespan animation to {output_path}")
+
+
+def create_lifespan_summary_plot(tracker: LifespanTracker, output_path: str):
+    """Create a static summary plot of lifespan distributions."""
+    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+
+    # Get final snapshot and all death ages
+    sorted_timesteps = sorted(tracker.snapshot_ages.keys())
+    if not sorted_timesteps:
+        print("No lifespan data to plot")
+        plt.close(fig)
+        return
+
+    final_timestep = sorted_timesteps[-1]
+    final_living_ages = tracker.snapshot_ages[final_timestep]
+    all_death_ages = [age for _, age in tracker.death_ages]
+
+    # Top-left: Final living ages histogram
+    ax = axes[0, 0]
+    if final_living_ages:
+        ax.hist(final_living_ages, bins=30, color="steelblue", edgecolor="black", alpha=0.7)
+    ax.set_xlabel("Age (timesteps)")
+    ax.set_ylabel("Count")
+    ax.set_title(f"Living Cell Ages at Final Step (t={final_timestep})")
+
+    # Top-right: All death ages histogram
+    ax = axes[0, 1]
+    if all_death_ages:
+        ax.hist(all_death_ages, bins=30, color="coral", edgecolor="black", alpha=0.7)
+        median_lifespan = np.median(all_death_ages)
+        mean_lifespan = np.mean(all_death_ages)
+        ax.axvline(median_lifespan, color="red", linestyle="--", label=f"Median: {median_lifespan:.1f}")
+        ax.axvline(mean_lifespan, color="darkred", linestyle=":", label=f"Mean: {mean_lifespan:.1f}")
+        ax.legend()
+    ax.set_xlabel("Age at Death (timesteps)")
+    ax.set_ylabel("Count")
+    ax.set_title("Complete Lifespan Distribution")
+
+    # Bottom-left: Mean living age over time
+    ax = axes[1, 0]
+    mean_ages = []
+    for t in sorted_timesteps:
+        ages = tracker.snapshot_ages[t]
+        mean_ages.append(np.mean(ages) if ages else 0)
+    ax.plot(sorted_timesteps, mean_ages, "b-", linewidth=2)
+    ax.set_xlabel("Timestep")
+    ax.set_ylabel("Mean Age")
+    ax.set_title("Mean Living Cell Age Over Time")
+    ax.grid(True, alpha=0.3)
+
+    # Bottom-right: Population count over time
+    ax = axes[1, 1]
+    pop_counts = [len(tracker.snapshot_ages[t]) for t in sorted_timesteps]
+    ax.plot(sorted_timesteps, pop_counts, "g-", linewidth=2)
+    ax.set_xlabel("Timestep")
+    ax.set_ylabel("Population")
+    ax.set_title("Population Over Time (at snapshot intervals)")
+    ax.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"Saved lifespan summary plot to {output_path}")
 
 
 def sample_food_distribution(
@@ -336,6 +511,10 @@ def create_video(
     seed: int | None = None,
     n_food_components: int = 2,
     n_top_agents: int = 10,
+    track_lifespan: bool = False,
+    lifespan_output: str | None = None,
+    lifespan_data: str | None = None,
+    lifespan_snapshot_interval: int = 10,
 ):
     """
     Create a video of the environment simulation.
@@ -347,6 +526,10 @@ def create_video(
         seed: Random seed for reproducibility (None for random)
         n_food_components: Number of Gaussian components for food spawning
         n_top_agents: Number of top longest-living agents to track
+        track_lifespan: Enable lifespan distribution tracking
+        lifespan_output: Output path for lifespan animation GIF
+        lifespan_data: Output path for lifespan data .npz file
+        lifespan_snapshot_interval: Take age snapshot every N steps
     """
     rng = np.random.default_rng(seed)
 
@@ -402,10 +585,17 @@ def create_video(
     # Initialize agent tracker
     tracker = TopAgentTracker(n_top=n_top_agents)
     living_cell_ids = set()
+    cell_ages: dict[int, int] = {}  # cell_id -> age at last record (for death tracking)
     for cell in env.cells:
         cell_id = id(cell)
         tracker.register_agent(cell_id)
         living_cell_ids.add(cell_id)
+        cell_ages[cell_id] = cell.age
+
+    # Initialize lifespan tracker if enabled
+    lifespan_tracker: LifespanTracker | None = None
+    if track_lifespan:
+        lifespan_tracker = LifespanTracker(snapshot_interval=lifespan_snapshot_interval)
 
     fig, ax = plt.subplots(figsize=(8, 8))
 
@@ -416,6 +606,12 @@ def create_video(
         # Record state for all living cells before step
         for cell in env.cells:
             tracker.record_step(id(cell), cell.get_protein(), cell.energy)
+            cell_ages[id(cell)] = cell.age
+
+        # Record lifespan snapshot if enabled
+        if lifespan_tracker is not None:
+            ages = env.get_cell_ages()
+            lifespan_tracker.record_snapshot(env.timestep, ages)
 
         proteins = env.get_cell_proteins()
         states.append({
@@ -435,8 +631,17 @@ def create_video(
         current_cell_ids = {id(cell) for cell in env.cells}
 
         # Detect deaths
-        for dead_id in living_cell_ids - current_cell_ids:
+        dead_ids = living_cell_ids - current_cell_ids
+        for dead_id in dead_ids:
             tracker.agent_died(dead_id)
+
+        # Record death ages for lifespan tracking
+        if lifespan_tracker is not None and dead_ids:
+            death_ages_this_step = [cell_ages[dead_id] for dead_id in dead_ids if dead_id in cell_ages]
+            lifespan_tracker.record_deaths(env.timestep, death_ages_this_step)
+            # Clean up cell_ages for dead cells
+            for dead_id in dead_ids:
+                cell_ages.pop(dead_id, None)
 
         # Detect births
         for new_id in current_cell_ids - living_cell_ids:
@@ -534,6 +739,32 @@ def create_video(
             print(f"  {i+1}. Lifetime: {agent.lifetime}, "
                   f"avg protein: {avg_protein:.1f}, avg energy: {avg_energy:.1f}")
 
+    # Save and plot lifespan data if tracking was enabled
+    if lifespan_tracker is not None:
+        # Determine output paths
+        lifespan_gif_path = lifespan_output or f"{base_name}_lifespan.gif"
+        lifespan_npz_path = lifespan_data or f"{base_name}_lifespan_data.npz"
+        lifespan_summary_path = f"{base_name}_lifespan_summary.png"
+
+        # Save data
+        lifespan_tracker.save_to_numpy(lifespan_npz_path)
+
+        # Create animated histogram
+        create_lifespan_animation(lifespan_tracker, lifespan_gif_path, fps=5)
+
+        # Create static summary plot
+        create_lifespan_summary_plot(lifespan_tracker, lifespan_summary_path)
+
+        # Print lifespan statistics
+        all_death_ages = [age for _, age in lifespan_tracker.death_ages]
+        if all_death_ages:
+            print(f"\nLifespan statistics:")
+            print(f"  Total deaths recorded: {len(all_death_ages)}")
+            print(f"  Mean lifespan: {np.mean(all_death_ages):.1f}")
+            print(f"  Median lifespan: {np.median(all_death_ages):.1f}")
+            print(f"  Max lifespan: {max(all_death_ages)}")
+            print(f"  Min lifespan: {min(all_death_ages)}")
+
 
 def main():
     import argparse
@@ -563,6 +794,22 @@ def main():
         "--top-agents", type=int, default=10,
         help="Number of top longest-living agents to track"
     )
+    parser.add_argument(
+        "--track-lifespan", action="store_true",
+        help="Enable lifespan distribution tracking"
+    )
+    parser.add_argument(
+        "--lifespan-output", type=str, default=None,
+        help="Output path for lifespan animation GIF (default: <output>_lifespan.gif)"
+    )
+    parser.add_argument(
+        "--lifespan-data", type=str, default=None,
+        help="Output path for lifespan data .npz file (default: <output>_lifespan_data.npz)"
+    )
+    parser.add_argument(
+        "--lifespan-interval", type=int, default=10,
+        help="Take age snapshot every N steps (default: 10)"
+    )
     args = parser.parse_args()
 
     if args.video:
@@ -573,6 +820,10 @@ def main():
             seed=args.seed,
             n_food_components=args.food_components,
             n_top_agents=args.top_agents,
+            track_lifespan=args.track_lifespan,
+            lifespan_output=args.lifespan_output,
+            lifespan_data=args.lifespan_data,
+            lifespan_snapshot_interval=args.lifespan_interval,
         )
     else:
         run_visualization(n_steps=args.steps, save_interval=50)

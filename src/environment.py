@@ -487,6 +487,10 @@ class Environment:
         """Return array of cell protein levels."""
         return np.array([c.get_protein() for c in self.cells])
 
+    def get_cell_ages(self) -> np.ndarray:
+        """Return array of cell ages."""
+        return np.array([c.age for c in self.cells])
+
     def count_resources(self) -> dict[str, int]:
         """Count food and poison tiles in the environment."""
         return {
