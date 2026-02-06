@@ -24,6 +24,7 @@ def create_output_dir(base_dir: str = "results") -> Path:
     return output_dir
 
 from environment import Environment, EnvironmentConfig, FoodDistributionConfig
+from perception import PerceptionConfig
 from action_mapper import TargetDistribution, ActionTargets
 
 
@@ -45,6 +46,50 @@ class AgentHistory:
     def __lt__(self, other: "AgentHistory") -> bool:
         # For min-heap: smaller lifetime = higher priority (to be replaced)
         return self.lifetime < other.lifetime
+
+
+@dataclass
+class GeneParamsTracker:
+    """Track gene expression parameter distributions over simulation."""
+    snapshot_interval: int
+    snapshots: dict[int, dict[str, list[float]]] = field(default_factory=dict)
+
+    def record_snapshot(self, timestep: int, cells: list):
+        """Record gene params for all cells at this timestep."""
+        if timestep % self.snapshot_interval != 0:
+            return
+        if not cells:
+            return
+        self.snapshots[timestep] = {
+            "k_transcription": [c.gene_params.k_transcription for c in cells],
+            "k_translation": [c.gene_params.k_translation for c in cells],
+            "k_mrna_deg": [c.gene_params.k_mrna_deg for c in cells],
+            "k_protein_deg": [c.gene_params.k_protein_deg for c in cells],
+        }
+
+    def save_to_numpy(self, filepath: str):
+        """Save gene params data to .npz file."""
+        if not self.snapshots:
+            print("No gene params data to save")
+            return
+
+        snapshot_timesteps = np.array(sorted(self.snapshots.keys()))
+        param_names = ["k_transcription", "k_translation", "k_mrna_deg", "k_protein_deg"]
+
+        data = {
+            "snapshot_timesteps": snapshot_timesteps,
+            "snapshot_interval": self.snapshot_interval,
+            "param_names": np.array(param_names),
+        }
+
+        for param in param_names:
+            data[f"{param}_values"] = np.array(
+                [self.snapshots[t][param] for t in snapshot_timesteps],
+                dtype=object,
+            )
+
+        np.savez(filepath, **data)
+        print(f"Saved gene params data to {filepath}")
 
 
 @dataclass
@@ -88,6 +133,132 @@ class LifespanTracker:
         )
         print(f"Saved lifespan data to {filepath}")
         print(f"  Snapshots: {len(snapshot_timesteps)}, Deaths recorded: {len(self.death_ages)}")
+
+
+def get_baseline_path(n_steps: int, n_food_components: int) -> Path:
+    """Return path to baseline data file."""
+    return Path(f"results/meta/steps-{n_steps}-f_comp-{n_food_components}/baseline.npz")
+
+
+def save_baseline_data(data: dict, n_steps: int, n_food_components: int):
+    """Save baseline lifespan data to meta folder."""
+    path = get_baseline_path(n_steps, n_food_components)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    np.savez(path, **data)
+    print(f"Saved baseline data to {path}")
+
+
+def load_baseline_data(n_steps: int, n_food_components: int) -> dict | None:
+    """Load baseline data if it exists, else return None."""
+    path = get_baseline_path(n_steps, n_food_components)
+    if path.exists():
+        return dict(np.load(path, allow_pickle=True))
+    return None
+
+
+def estimate_baseline_lifespan(
+    n_simulations: int,
+    n_steps: int,
+    n_food_components: int,
+    seed: int | None,
+) -> dict:
+    """
+    Run N simulations without mutation to estimate baseline lifespan.
+
+    Returns dict with:
+    - mean_lifespan: average death age across all simulations
+    - std_lifespan: standard deviation
+    - all_death_ages: list of all recorded death ages
+    - n_simulations: number of simulations run
+    """
+    all_death_ages: list[int] = []
+    base_rng = np.random.default_rng(seed)
+
+    for sim_idx in tqdm(range(n_simulations), desc="Baseline simulations"):
+        sim_seed = base_rng.integers(0, 2**31)
+        rng = np.random.default_rng(sim_seed)
+
+        grid_width = 250
+        grid_height = 250
+
+        food_config = sample_food_distribution(
+            n_components=n_food_components,
+            width=grid_width,
+            height=grid_height,
+            rng=rng,
+            total_food_per_step=50,
+            variance_range=(100, 150),
+        )
+
+        custom_targets = ActionTargets(
+            move_up=TargetDistribution(mean=75.0, std=50.0),
+            move_down=TargetDistribution(mean=100.0, std=50.0),
+            move_left=TargetDistribution(mean=125.0, std=50.0),
+            move_right=TargetDistribution(mean=150.0, std=50.0),
+            stay=TargetDistribution(mean=50.0, std=20.0),
+        )
+
+        perception_config = PerceptionConfig(mutation_rate=0.0)
+
+        config = EnvironmentConfig(
+            width=grid_width,
+            height=grid_height,
+            food_spawn_prob=rng.uniform(0.005, 0.02),
+            poison_spawn_prob=rng.uniform(0.00001, 0.0001),
+            food_energy=rng.uniform(20, 40),
+            poison_energy=rng.uniform(-60, -30),
+            reproduction_threshold=rng.uniform(120, 180),
+            use_distribution_mapper=True,
+            action_targets=custom_targets,
+            food_distribution=food_config,
+            perception_config=perception_config,
+        )
+
+        env = Environment(config, seed=sim_seed)
+        env.spawn_random_cells(10)
+
+        cell_ages: dict[int, int] = {}
+        for cell in env.cells:
+            cell_ages[id(cell)] = cell.age
+
+        living_cell_ids = {id(cell) for cell in env.cells}
+
+        for step in range(n_steps):
+            for cell in env.cells:
+                cell_ages[id(cell)] = cell.age
+
+            env.step()
+
+            current_cell_ids = {id(cell) for cell in env.cells}
+            dead_ids = living_cell_ids - current_cell_ids
+
+            for dead_id in dead_ids:
+                if dead_id in cell_ages:
+                    all_death_ages.append(cell_ages[dead_id])
+                    del cell_ages[dead_id]
+
+            for new_id in current_cell_ids - living_cell_ids:
+                cell_ages[new_id] = 0
+
+            living_cell_ids = current_cell_ids
+
+            if len(env.cells) == 0:
+                break
+
+    result = {
+        "mean_lifespan": np.mean(all_death_ages) if all_death_ages else 0.0,
+        "std_lifespan": np.std(all_death_ages) if all_death_ages else 0.0,
+        "all_death_ages": np.array(all_death_ages),
+        "n_simulations": n_simulations,
+    }
+
+    print(f"\nBaseline estimation complete:")
+    print(f"  Simulations run: {n_simulations}")
+    print(f"  Total deaths recorded: {len(all_death_ages)}")
+    print(f"  Mean lifespan: {result['mean_lifespan']:.2f}")
+    print(f"  Std lifespan: {result['std_lifespan']:.2f}")
+
+    return result
 
 
 class TopAgentTracker:
@@ -260,7 +431,11 @@ def create_lifespan_animation(
     print(f"Saved lifespan animation to {output_path}")
 
 
-def create_lifespan_summary_plot(tracker: LifespanTracker, output_path: str):
+def create_lifespan_summary_plot(
+    tracker: LifespanTracker,
+    output_path: str,
+    baseline_mean: float | None = None,
+):
     """Create a static summary plot of lifespan distributions."""
     fig, axes = plt.subplots(2, 2, figsize=(12, 10))
 
@@ -303,6 +478,14 @@ def create_lifespan_summary_plot(tracker: LifespanTracker, output_path: str):
         ages = tracker.snapshot_ages[t]
         mean_ages.append(np.mean(ages) if ages else 0)
     ax.plot(sorted_timesteps, mean_ages, "b-", linewidth=2)
+    if baseline_mean is not None:
+        ax.axhline(
+            baseline_mean,
+            color="red",
+            linestyle="--",
+            label=f"No-mutation baseline: {baseline_mean:.1f}",
+        )
+        ax.legend()
     ax.set_xlabel("Timestep")
     ax.set_ylabel("Mean Age")
     ax.set_title("Mean Living Cell Age Over Time")
@@ -321,6 +504,63 @@ def create_lifespan_summary_plot(tracker: LifespanTracker, output_path: str):
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"Saved lifespan summary plot to {output_path}")
+
+
+def create_gene_params_summary_plot(
+    tracker: GeneParamsTracker,
+    output_path: str,
+):
+    """Create 2x2 plot showing parameter distributions over time."""
+    if not tracker.snapshots:
+        print("No gene params data to plot")
+        return
+
+    sorted_timesteps = sorted(tracker.snapshots.keys())
+    param_configs = [
+        ("k_transcription", "Transcription Rate", (0.1, 2.0)),
+        ("k_translation", "Translation Rate", (0.1, 5.0)),
+        ("k_mrna_deg", "mRNA Degradation Rate", (0.01, 0.5)),
+        ("k_protein_deg", "Protein Degradation Rate", (0.005, 0.1)),
+    ]
+
+    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+    axes = axes.flatten()
+
+    for ax, (param_name, title, param_range) in zip(axes, param_configs):
+        means = []
+        stds = []
+        for t in sorted_timesteps:
+            values = tracker.snapshots[t][param_name]
+            means.append(np.mean(values))
+            stds.append(np.std(values))
+
+        means = np.array(means)
+        stds = np.array(stds)
+        timesteps = np.array(sorted_timesteps)
+
+        ax.plot(timesteps, means, "b-", linewidth=2, label="Mean")
+        ax.fill_between(
+            timesteps,
+            means - stds,
+            means + stds,
+            alpha=0.3,
+            color="blue",
+            label="±1 Std",
+        )
+
+        ax.axhline(param_range[0], color="gray", linestyle="--", alpha=0.5, label="Range")
+        ax.axhline(param_range[1], color="gray", linestyle="--", alpha=0.5)
+
+        ax.set_xlabel("Timestep")
+        ax.set_ylabel(param_name)
+        ax.set_title(title)
+        ax.legend(loc="upper right", fontsize=8)
+        ax.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"Saved gene params summary plot to {output_path}")
 
 
 def sample_food_distribution(
@@ -533,6 +773,9 @@ def create_video(
     track_lifespan: bool = False,
     lifespan_snapshot_interval: int = 10,
     output_dir: Path | None = None,
+    no_mutation: bool = False,
+    baseline_mean: float | None = None,
+    track_gene_params: bool = False,
 ):
     """
     Create a video of the environment simulation.
@@ -547,6 +790,9 @@ def create_video(
         track_lifespan: Enable lifespan distribution tracking
         lifespan_snapshot_interval: Take age snapshot every N steps
         output_dir: Output directory (created with timestamp if None)
+        no_mutation: Disable mutation during reproduction
+        baseline_mean: Baseline mean lifespan to display on plots
+        track_gene_params: Enable gene expression parameter tracking
     """
     # Create output directory
     if output_dir is None:
@@ -575,6 +821,9 @@ def create_video(
         variance_range=(100, 150),
     )
 
+    # Configure perception (disable mutation if requested)
+    perception_config = PerceptionConfig(mutation_rate=0.0) if no_mutation else None
+
     config = EnvironmentConfig(
         width=grid_width,
         height=grid_height,
@@ -585,7 +834,8 @@ def create_video(
         reproduction_threshold=rng.uniform(120, 180),
         use_distribution_mapper=True,
         action_targets=custom_targets,
-        food_distribution=food_config
+        food_distribution=food_config,
+        perception_config=perception_config,
     )
 
     print("Environment configuration:")
@@ -595,6 +845,7 @@ def create_video(
     print(f"  Food energy: {config.food_energy:.1f}")
     print(f"  Poison energy: {config.poison_energy:.1f}")
     print(f"  Reproduction threshold: {config.reproduction_threshold:.1f}")
+    print(f"  Mutation: {'disabled' if no_mutation else 'enabled'}")
     print(f"\nFood distribution ({food_config.num_components} components):")
     for i in range(food_config.num_components):
         print(f"  Component {i+1}: mean=({food_config.means_x[i]:.1f}, {food_config.means_y[i]:.1f}), "
@@ -619,6 +870,11 @@ def create_video(
     if track_lifespan:
         lifespan_tracker = LifespanTracker(snapshot_interval=lifespan_snapshot_interval)
 
+    # Initialize gene params tracker if enabled
+    gene_params_tracker: GeneParamsTracker | None = None
+    if track_gene_params:
+        gene_params_tracker = GeneParamsTracker(snapshot_interval=lifespan_snapshot_interval)
+
     fig, ax = plt.subplots(figsize=(8, 8))
 
     # Pre-run simulation and store states for smooth animation
@@ -633,6 +889,10 @@ def create_video(
         if lifespan_tracker is not None:
             ages = env.get_cell_ages()
             lifespan_tracker.record_snapshot(env.timestep, ages)
+
+        # Record gene params snapshot if enabled
+        if gene_params_tracker is not None:
+            gene_params_tracker.record_snapshot(env.timestep, env.cells)
 
         proteins = env.get_cell_proteins()
         states.append({
@@ -827,7 +1087,11 @@ def create_video(
         create_lifespan_animation(lifespan_tracker, str(lifespan_gif_path), fps=5)
 
         # Create static summary plot
-        create_lifespan_summary_plot(lifespan_tracker, str(lifespan_summary_path))
+        create_lifespan_summary_plot(
+            lifespan_tracker,
+            str(lifespan_summary_path),
+            baseline_mean=baseline_mean,
+        )
 
         # Print lifespan statistics
         all_death_ages = [age for _, age in lifespan_tracker.death_ages]
@@ -838,6 +1102,14 @@ def create_video(
             print(f"  Median lifespan: {np.median(all_death_ages):.1f}")
             print(f"  Max lifespan: {max(all_death_ages)}")
             print(f"  Min lifespan: {min(all_death_ages)}")
+
+    # Save and plot gene params data if tracking was enabled
+    if gene_params_tracker is not None:
+        gene_params_npz_path = output_dir / f"{base_name}_gene_params.npz"
+        gene_params_plot_path = output_dir / f"{base_name}_gene_params.png"
+
+        gene_params_tracker.save_to_numpy(str(gene_params_npz_path))
+        create_gene_params_summary_plot(gene_params_tracker, str(gene_params_plot_path))
 
     print(f"\nResults saved to: {output_dir}")
 
@@ -878,7 +1150,52 @@ def main():
         "--lifespan-interval", type=int, default=10,
         help="Take age snapshot every N steps (default: 10)"
     )
+    parser.add_argument(
+        "--track-gene-params", action="store_true",
+        help="Track gene expression parameter distributions"
+    )
+    parser.add_argument(
+        "--no-mutation", action="store_true",
+        help="Disable mutation during reproduction"
+    )
+    parser.add_argument(
+        "--estimate-baseline", action="store_true",
+        help="Run N simulations to estimate baseline lifespan (no mutation)"
+    )
+    parser.add_argument(
+        "--baseline-runs", type=int, default=10,
+        help="Number of simulations for baseline estimation (default: 10)"
+    )
+    parser.add_argument(
+        "--use-baseline", action="store_true",
+        help="Load and display baseline on lifespan plots"
+    )
     args = parser.parse_args()
+
+    # Handle baseline estimation
+    if args.estimate_baseline:
+        print(f"Estimating baseline lifespan ({args.baseline_runs} simulations)...")
+        baseline_data = estimate_baseline_lifespan(
+            n_simulations=args.baseline_runs,
+            n_steps=args.steps,
+            n_food_components=args.food_components,
+            seed=args.seed,
+        )
+        save_baseline_data(baseline_data, args.steps, args.food_components)
+
+    # Load baseline if requested
+    baseline_mean: float | None = None
+    if args.use_baseline:
+        baseline_data = load_baseline_data(args.steps, args.food_components)
+        if baseline_data is not None:
+            baseline_mean = float(baseline_data["mean_lifespan"])
+            print(f"Loaded baseline mean lifespan: {baseline_mean:.2f}")
+        else:
+            print(
+                f"Warning: No baseline data found for steps={args.steps}, "
+                f"food_components={args.food_components}. "
+                f"Run with --estimate-baseline first."
+            )
 
     if args.video:
         create_video(
@@ -890,8 +1207,11 @@ def main():
             n_top_agents=args.top_agents,
             track_lifespan=args.track_lifespan,
             lifespan_snapshot_interval=args.lifespan_interval,
+            no_mutation=args.no_mutation,
+            baseline_mean=baseline_mean,
+            track_gene_params=args.track_gene_params,
         )
-    else:
+    elif not args.estimate_baseline:
         run_visualization(n_steps=args.steps, save_interval=50)
 
 
