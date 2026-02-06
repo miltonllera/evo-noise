@@ -6,6 +6,9 @@
 
 namespace evo {
 
+using CellId = uint64_t;
+constexpr CellId INVALID_CELL_ID = 0;
+
 enum class TileType : int8_t {
     EMPTY = 0,
     FOOD = 1,

@@ -9,7 +9,8 @@ Environment::Environment(const EnvironmentConfig& config, uint64_t seed)
     : config_(config),
       rng_(seed),
       grid_(config.width * config.height, TileType::EMPTY),
-      timestep_(0) {
+      timestep_(0),
+      next_cell_id_(1) {
     perception_system_ = std::make_unique<PerceptionSystem>(config_.perception_config, rng_);
 
     if (config_.use_distribution_mapper) {
@@ -36,13 +37,18 @@ TileType Environment::grid_at(int x, int y) const {
     return grid_[y * config_.width + x];
 }
 
+CellId Environment::generate_cell_id() {
+    return next_cell_id_++;
+}
+
 Cell& Environment::add_cell(int x, int y, double energy) {
     PerceptionNetwork network = perception_system_->create_network();
     GeneExpressionParams params = perception_system_->perceive(
         grid_.data(), config_.width, config_.height, x, y, network
     );
 
-    cells_.emplace_back(x, y, params, std::move(network), energy, config_.history_window_size);
+    CellId id = generate_cell_id();
+    cells_.emplace_back(id, x, y, params, std::move(network), energy, config_.history_window_size);
     return cells_.back();
 }
 
@@ -211,7 +217,8 @@ Cell* Environment::cell_reproduce(Cell& cell, std::vector<Cell>& new_cells) {
         grid_.data(), config_.width, config_.height, ox, oy, offspring_network
     );
 
-    new_cells.emplace_back(ox, oy, offspring_params, std::move(offspring_network),
+    CellId offspring_id = generate_cell_id();
+    new_cells.emplace_back(offspring_id, ox, oy, offspring_params, std::move(offspring_network),
                           offspring_energy, config_.history_window_size);
     return &new_cells.back();
 }

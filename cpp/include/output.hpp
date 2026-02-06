@@ -9,7 +9,7 @@ namespace evo {
 
 // Binary output format constants
 constexpr uint32_t MAGIC = 0x4E4F5645;  // "EVON" in little-endian
-constexpr uint32_t VERSION = 1;
+constexpr uint32_t VERSION = 2;
 
 struct FrameHeader {
     uint32_t magic;
@@ -20,15 +20,23 @@ struct FrameHeader {
     uint32_t height;
     uint32_t food_count;
     uint32_t poison_count;
+    double total_energy;
+    double mean_energy;
+    double mean_protein;
 };
 
 struct CellData {
+    uint64_t cell_id;
     int32_t x;
     int32_t y;
     double energy;
     int32_t protein;
     int32_t mrna;
     int32_t age;
+    float k_transcription;
+    float k_translation;
+    float k_mrna_deg;
+    float k_protein_deg;
 };
 
 class OutputWriter {

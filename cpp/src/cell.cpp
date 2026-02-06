@@ -3,13 +3,15 @@
 namespace evo {
 
 Cell::Cell(
+    CellId id_,
     int x_,
     int y_,
     const GeneExpressionParams& gene_params_,
     PerceptionNetwork perception_network_,
     double energy_,
     int history_maxlen
-) : x(x_),
+) : id(id_),
+    x(x_),
     y(y_),
     gene_params(gene_params_),
     perception_network(std::move(perception_network_)),

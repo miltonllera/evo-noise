@@ -7,6 +7,7 @@
 namespace evo {
 
 struct Cell {
+    CellId id;
     int x;
     int y;
     GeneExpressionParams gene_params;
@@ -17,6 +18,7 @@ struct Cell {
     ProteinHistory protein_history;
 
     Cell(
+        CellId id_,
         int x_,
         int y_,
         const GeneExpressionParams& gene_params_,

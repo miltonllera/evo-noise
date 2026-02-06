@@ -37,6 +37,9 @@ private:
     std::vector<TileType> grid_;  // Row-major: grid_[y * width + x]
     std::vector<Cell> cells_;
     int timestep_;
+    CellId next_cell_id_;
+
+    CellId generate_cell_id();
 
     std::unique_ptr<PerceptionSystem> perception_system_;
     std::unique_ptr<ActionMapper> action_mapper_;
