@@ -8,12 +8,33 @@ evo-noise is a Python project to study how information in a simulated environmen
 
 ## Development Commands
 
+### Python
 ```bash
 uv sync                                              # Install dependencies
 uv run python scripts/run_simulation_and_visualise_results.py --video --steps 300  # Run simulation video
 uv run jupyter notebook                              # Start Jupyter
 uv add <package-name>                                # Add dependency
 ```
+
+### C++ (High-Performance Implementation)
+```bash
+cd cpp
+make                                                 # Build optimized binary
+make debug                                           # Build with debug symbols
+./evo_noise --steps 1000 --cells 100 --seed 42      # Run simulation
+./evo_noise --help                                   # Show all options
+python3 read_binary.py simulation.bin               # Read output in Python
+```
+
+C++ CLI options:
+- `--steps N`: Simulation steps (default: 1000)
+- `--cells N`: Initial cells (default: 100)
+- `--width N`, `--height N`: Grid size (default: 50x50)
+- `--seed N`: Random seed (default: 42)
+- `--output FILE`: Output file (default: simulation.bin)
+- `--no-output`: Skip output file
+- `--repro-threshold N`: Reproduction threshold (default: 150)
+- `--quiet`: Suppress progress output
 
 ## Architecture
 
