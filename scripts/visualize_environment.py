@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 from matplotlib.patches import Patch
 from matplotlib.animation import FuncAnimation
+from tqdm import tqdm
 
 from environment import Environment, EnvironmentConfig, FoodDistributionConfig
 from action_mapper import TargetDistribution, ActionTargets
@@ -451,7 +452,7 @@ def run_visualization(n_steps: int = 200, save_interval: int = 50):
     fig, ax = plt.subplots(figsize=(8, 8))
 
     print(f"\nRunning simulation for {n_steps} steps...")
-    for step in range(n_steps):
+    for step in tqdm(range(n_steps), desc="Simulating"):
         env.step()
 
         state = env.get_state()
@@ -600,9 +601,8 @@ def create_video(
     fig, ax = plt.subplots(figsize=(8, 8))
 
     # Pre-run simulation and store states for smooth animation
-    print(f"\nSimulating {n_steps} steps...")
     states = []
-    for step in range(n_steps):
+    for step in tqdm(range(n_steps), desc="Simulating"):
         # Record state for all living cells before step
         for cell in env.cells:
             tracker.record_step(id(cell), cell.get_protein(), cell.energy)
