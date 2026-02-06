@@ -5,6 +5,8 @@ sys.path.insert(0, "src")
 
 import heapq
 from dataclasses import dataclass, field
+from datetime import datetime
+from pathlib import Path
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -12,6 +14,14 @@ from matplotlib.colors import ListedColormap
 from matplotlib.patches import Patch
 from matplotlib.animation import FuncAnimation
 from tqdm import tqdm
+
+
+def create_output_dir(base_dir: str = "results") -> Path:
+    """Create timestamped output directory and return its path."""
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    output_dir = Path(base_dir) / timestamp
+    output_dir.mkdir(parents=True, exist_ok=True)
+    return output_dir
 
 from environment import Environment, EnvironmentConfig, FoodDistributionConfig
 from action_mapper import TargetDistribution, ActionTargets
@@ -318,7 +328,7 @@ def sample_food_distribution(
     width: int,
     height: int,
     rng: np.random.Generator,
-    total_food_per_step: int = 10,
+    total_food_per_step: int = 5,
     variance_range: tuple[float, float] = (50.0, 500.0),
 ) -> FoodDistributionConfig:
     """
@@ -409,14 +419,20 @@ def create_frame(env: Environment, ax: plt.Axes, protein_max: float = 300.0):
     ax.set_ylim(-0.5, env.config.height - 0.5)
 
 
-def run_visualization(n_steps: int = 200, save_interval: int = 50):
+def run_visualization(n_steps: int = 200, save_interval: int = 50, output_dir: Path | None = None):
     """
     Run environment simulation with visualization.
 
     Args:
         n_steps: Total number of simulation steps
         save_interval: Save a snapshot every N steps
+        output_dir: Output directory (created with timestamp if None)
     """
+    # Create output directory
+    if output_dir is None:
+        output_dir = create_output_dir()
+    print(f"Output directory: {output_dir}")
+
     # Random configuration
     rng = np.random.default_rng()
     config = EnvironmentConfig(
@@ -465,9 +481,9 @@ def run_visualization(n_steps: int = 200, save_interval: int = 50):
 
         if step % save_interval == 0 or step == n_steps - 1:
             create_frame(env, ax)
-            filename = f"environment_step_{step:04d}.png"
-            plt.savefig(filename, dpi=100, bbox_inches="tight")
-            print(f"  Saved {filename} (cells: {state['n_cells']})")
+            filepath = output_dir / f"environment_step_{step:04d}.png"
+            plt.savefig(filepath, dpi=100, bbox_inches="tight")
+            tqdm.write(f"  Saved {filepath.name} (cells: {state['n_cells']})")
 
         # Stop if all cells die
         if state["n_cells"] == 0:
@@ -496,26 +512,27 @@ def run_visualization(n_steps: int = 200, save_interval: int = 50):
     axes[2].grid(True, alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig("environment_history.png", dpi=100)
-    print(f"\nSaved environment_history.png")
+    history_path = output_dir / "environment_history.png"
+    plt.savefig(history_path, dpi=100)
+    print(f"\nSaved {history_path}")
 
     final_state = env.get_state()
     print(f"\nSimulation complete:")
     print(f"  Final timestep: {final_state['timestep']}")
     print(f"  Final cell count: {final_state['n_cells']}")
+    print(f"  Results saved to: {output_dir}")
 
 
 def create_video(
     n_steps: int = 300,
     fps: int = 20,
-    output_file: str = "environment_simulation.mp4",
+    output_file: str = "simulation.mp4",
     seed: int | None = None,
     n_food_components: int = 2,
     n_top_agents: int = 10,
     track_lifespan: bool = False,
-    lifespan_output: str | None = None,
-    lifespan_data: str | None = None,
     lifespan_snapshot_interval: int = 10,
+    output_dir: Path | None = None,
 ):
     """
     Create a video of the environment simulation.
@@ -528,10 +545,14 @@ def create_video(
         n_food_components: Number of Gaussian components for food spawning
         n_top_agents: Number of top longest-living agents to track
         track_lifespan: Enable lifespan distribution tracking
-        lifespan_output: Output path for lifespan animation GIF
-        lifespan_data: Output path for lifespan data .npz file
         lifespan_snapshot_interval: Take age snapshot every N steps
+        output_dir: Output directory (created with timestamp if None)
     """
+    # Create output directory
+    if output_dir is None:
+        output_dir = create_output_dir()
+    print(f"Output directory: {output_dir}")
+
     rng = np.random.default_rng(seed)
 
     custom_targets = ActionTargets(
@@ -659,6 +680,58 @@ def create_video(
     print(f"  Captured {len(states)} frames")
     print(f"  Tracked {len(tracker.get_top_agents())} top agents")
 
+    # Base name for output files
+    base_name = output_file.rsplit(".", 1)[0]
+
+    # Extract and save simulation history
+    history = {
+        "timestep": np.array([s["timestep"] for s in states]),
+        "n_cells": np.array([s["n_cells"] for s in states]),
+        "food": np.array([s["food"] for s in states]),
+        "poison": np.array([s["poison"] for s in states]),
+        "mean_protein": np.array([s["mean_protein"] for s in states]),
+        "mean_energy": np.array([s["energies"].mean() if s["n_cells"] > 0 else 0 for s in states]),
+        "total_energy": np.array([s["energies"].sum() if s["n_cells"] > 0 else 0 for s in states]),
+    }
+
+    # Save history to npz
+    history_npz_path = output_dir / f"{base_name}_history.npz"
+    np.savez(history_npz_path, **history)
+    print(f"Saved simulation history to {history_npz_path}")
+
+    # Plot simulation history
+    fig_hist, axes = plt.subplots(3, 1, figsize=(12, 10), sharex=True)
+
+    axes[0].plot(history["timestep"], history["n_cells"], "b-", linewidth=2, label="Population")
+    axes[0].set_ylabel("Cell count")
+    axes[0].set_title("Population Dynamics")
+    axes[0].legend(loc="upper right")
+    axes[0].grid(True, alpha=0.3)
+
+    ax1_twin = axes[1].twinx()
+    axes[1].plot(history["timestep"], history["mean_energy"], "g-", linewidth=2, label="Mean energy")
+    ax1_twin.plot(history["timestep"], history["mean_protein"], "purple", linewidth=2, label="Mean protein")
+    axes[1].set_ylabel("Mean energy", color="green")
+    ax1_twin.set_ylabel("Mean protein", color="purple")
+    axes[1].tick_params(axis="y", labelcolor="green")
+    ax1_twin.tick_params(axis="y", labelcolor="purple")
+    axes[1].set_title("Energy and Protein Levels")
+    axes[1].grid(True, alpha=0.3)
+
+    axes[2].plot(history["timestep"], history["food"], "g-", linewidth=2, label="Food")
+    axes[2].plot(history["timestep"], history["poison"], "r-", linewidth=2, label="Poison")
+    axes[2].set_xlabel("Timestep")
+    axes[2].set_ylabel("Resource count")
+    axes[2].set_title("Resources")
+    axes[2].legend(loc="upper right")
+    axes[2].grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    history_plot_path = output_dir / f"{base_name}_history.png"
+    plt.savefig(history_plot_path, dpi=150, bbox_inches="tight")
+    plt.close(fig_hist)
+    print(f"Saved history plot to {history_plot_path}")
+
     # Color map for grid
     grid_cmap = ListedColormap(["#f0f0f0", "#4CAF50", "#f44336"])
     legend_elements = [
@@ -715,19 +788,20 @@ def create_video(
         blit=True,
     )
 
-    print(f"Saving to {output_file}...")
+    # Save video to output directory
+    video_path = output_dir / output_file
+    print(f"Saving to {video_path}...")
     if output_file.endswith(".gif"):
-        anim.save(output_file, writer="pillow", fps=fps)
+        anim.save(video_path, writer="pillow", fps=fps)
     else:
-        anim.save(output_file, writer="ffmpeg", fps=fps)
+        anim.save(video_path, writer="ffmpeg", fps=fps)
 
     plt.close(fig)
-    print(f"Video saved: {output_file}")
+    print(f"Video saved: {video_path}")
 
     # Save and plot top agent histories
-    base_name = output_file.rsplit(".", 1)[0]
-    tracker.save_to_numpy(f"{base_name}_top_agents.npz")
-    tracker.plot_top_agents(f"{base_name}_top_agents.png")
+    tracker.save_to_numpy(str(output_dir / f"{base_name}_top_agents.npz"))
+    tracker.plot_top_agents(str(output_dir / f"{base_name}_top_agents.png"))
 
     # Print summary of top agents
     top_agents = tracker.get_top_agents()
@@ -742,18 +816,18 @@ def create_video(
     # Save and plot lifespan data if tracking was enabled
     if lifespan_tracker is not None:
         # Determine output paths
-        lifespan_gif_path = lifespan_output or f"{base_name}_lifespan.gif"
-        lifespan_npz_path = lifespan_data or f"{base_name}_lifespan_data.npz"
-        lifespan_summary_path = f"{base_name}_lifespan_summary.png"
+        lifespan_gif_path = output_dir / f"{base_name}_lifespan.gif"
+        lifespan_npz_path = output_dir / f"{base_name}_lifespan_data.npz"
+        lifespan_summary_path = output_dir / f"{base_name}_lifespan_summary.png"
 
         # Save data
-        lifespan_tracker.save_to_numpy(lifespan_npz_path)
+        lifespan_tracker.save_to_numpy(str(lifespan_npz_path))
 
         # Create animated histogram
-        create_lifespan_animation(lifespan_tracker, lifespan_gif_path, fps=5)
+        create_lifespan_animation(lifespan_tracker, str(lifespan_gif_path), fps=5)
 
         # Create static summary plot
-        create_lifespan_summary_plot(lifespan_tracker, lifespan_summary_path)
+        create_lifespan_summary_plot(lifespan_tracker, str(lifespan_summary_path))
 
         # Print lifespan statistics
         all_death_ages = [age for _, age in lifespan_tracker.death_ages]
@@ -764,6 +838,8 @@ def create_video(
             print(f"  Median lifespan: {np.median(all_death_ages):.1f}")
             print(f"  Max lifespan: {max(all_death_ages)}")
             print(f"  Min lifespan: {min(all_death_ages)}")
+
+    print(f"\nResults saved to: {output_dir}")
 
 
 def main():
@@ -780,8 +856,8 @@ def main():
         "--fps", type=int, default=20, help="Frames per second for video"
     )
     parser.add_argument(
-        "--output", type=str, default="environment_simulation.mp4",
-        help="Output filename for video"
+        "--output", type=str, default="simulation.mp4",
+        help="Output filename for video (saved in timestamped results folder)"
     )
     parser.add_argument(
         "--seed", type=int, default=None, help="Random seed for reproducibility"
@@ -799,14 +875,6 @@ def main():
         help="Enable lifespan distribution tracking"
     )
     parser.add_argument(
-        "--lifespan-output", type=str, default=None,
-        help="Output path for lifespan animation GIF (default: <output>_lifespan.gif)"
-    )
-    parser.add_argument(
-        "--lifespan-data", type=str, default=None,
-        help="Output path for lifespan data .npz file (default: <output>_lifespan_data.npz)"
-    )
-    parser.add_argument(
         "--lifespan-interval", type=int, default=10,
         help="Take age snapshot every N steps (default: 10)"
     )
@@ -821,8 +889,6 @@ def main():
             n_food_components=args.food_components,
             n_top_agents=args.top_agents,
             track_lifespan=args.track_lifespan,
-            lifespan_output=args.lifespan_output,
-            lifespan_data=args.lifespan_data,
             lifespan_snapshot_interval=args.lifespan_interval,
         )
     else:

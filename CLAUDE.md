@@ -44,6 +44,7 @@ uv add <package-name>                                # Add dependency
 ## Code Style Guidelines
 
 - NEVER use default values in function parameters
+- NEVER DELETE FOLDERS WITHOUT ASKING FIRST.
 - ONLY write what requested explicitly, do not add extra stuff
 - Always require all parameters to be explicitly passed
 - Be concise, do not over-comment the code
