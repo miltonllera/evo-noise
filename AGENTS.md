@@ -14,25 +14,32 @@ AGENTS.md/CLAUDE.md RESEARCH.md TODO.md   # top-level md
 
 - **`AGENTS.md`** — standing conventions and agent guidelines for the project. Treat as read-only during normal work: don't edit it unless the user explicitly asks.
 - **`RESEARCH.md`** — the project and scientific framing: research questions, technical specifications, current status, and the analysis of experiment results. As the project grows, new information goes into a specific `md/` file and is cross-referenced here via `@` (i.e. `@md/filename.md`).
-- **`TODO.md`** — an actionable queue of the project's TODOs, split into two sections, `Implementation` (codebase features) and `Experiments` (experiments-to-be-run). Items are functional bullets describing *what* we want (a behaviour, function, outcome, or experiment to run), at whatever level of detail is useful; written by the user, or by the agent during planning. Notation: `[ ]` planned/queued, `[~]` WIP, `[x]` done and verified — an item moves `[ ]` → `[~]` → `[x]` as work progresses. The *how* (chosen approach, file sequence) stays internal to the session and is not a tracked artifact. The `Uncategorized` inbox contains raw, unsorted captures (functional points, notes, experiment ideas), not yet triaged into the sections above.
+- **`TODO.md`** — an actionable queue of the project's TODOs, split into two sections, `Implementation` (codebase features) and `Experiments` (experiments-to-be-run). Items are functional bullets describing *what* we want (a behaviour, function, outcome, or experiment to run), at whatever level of detail is useful; written by the user, or by the agent during planning. Notation: `[ ]` planned/queued, `[~]` WIP, `[x]` done and verified — an item moves `[ ]` → `[~]` → `[x]` as work progresses. The `Uncategorized` inbox contains raw, unsorted captures (todos, notes, experiment ideas), not yet triaged into the sections above.
 - **Before every non-trivial commit, make sure both are current:**
   - `TODO.md`: keep it lean. When a feature is done, move a concise record of what was built (outcome plus key files touched) to `DONE.md` and leave a one-liner marked `[x]` in `TODO.md`.
   - `RESEARCH.md`: keep status, experiment results, and project direction up to date; keep it lean, don't bloat it. If unsure whether it needs an update, ask the user.
 
 ## Agent guidelines
 
-- **Design features with the user first.** When asked to implement a feature, start by interviewing the user to reach a shared understanding a plan and specs *together*: present the available options and their trade-offs, then build from the chosen one. Scale planning effort to the feature size: the larger the feature, the more comprehensive the plan and specs; the more open-ended it is, the more the user should be involved in defining the features and specs. Ask **abundantly** the user to establish an aligned and fully defined plan. **Record the agreed items as `[ ]` entries in `TODO.md` (functional bullets: what we want, not how to build it) before implementing.**
+- **Design features with the user first.** When asked to implement a feature, start by interviewing the user to reach a shared understanding a plan and specs *together*: present the available options and their trade-offs, then build from the chosen one. 
+  - Scale planning effort to the feature size: the larger the feature, the more comprehensive the plan and specs; the more open-ended it is, the more the user should be involved in defining the features and specs. 
+  - Ask **abundantly** the user to establish an aligned and fully defined plan. Record the agreed items as `[ ]` entries in `TODO.md` (outcome-centered bullets: what we want, not how to build it) before implementing.
+
 - **Build only what was asked / what's in the plan — no feature creep.** If something unspecified seems necessary or useful, check with the user rather than just adding it.
 - **Don't make assumptions: when anything is ambiguous or underspecified, check in with the user**. Don't be shy to **ask clarifying questions** to identify ambiguities, edge cases, underspecified behaviors, design preferences, and performance needs.
 - **Avoid over-engineering solutions; value simplicity and modularity.**
 - **Be extra careful to avoid silent failures.**
-- **Use subagents whenever possible** to delegate and parallelise work efficiently.
+- Use **subagents** whenever possible to delegate and parallelise work efficiently. Choose subagents modes based on task complexity: for trivial tasks likes verifying if test pass, use token-efficient models (i.e., Claude's Sonnet or Codex's Terra).
+- Keep `TODO.md` up-to-date. Always verify that TODO.md is up-to-date before committing and PR code changes. Don't commit changes or PR if `TODO.md` has items marked as WIP `[~]`.
 - Keep RESEARCH.md lean: `md/` is the project's second brain for durable reference knowledge (code and experiment scripts docs, methodology, model/hyperparameter rationale, dataset descriptions, preprocessing, workflows, agent instructions), not results or data (those live in `results/` and `data/`). Record what's worth keeping long-term and consulting again, not transient or one-off detail; consult `md/` before re-deriving something that may already be documented. Put new detail in a specific `md/` file and cross-reference it with `@` (i.e. `@md/filename.md`) in RESEARCH.md. 
 - Match the user's own terms in notes, comments, commits, and docs; don't paraphrase, relabel, or "improve" their wording.
 
 ## TODO.md workflow
 
-- Keep `TODO.md` live during work: mark an item `[ ]` when planned, `[~]` when you begin it, and `[x]` when it's done and verified, so the queue always reflects current state, not just at commit time. Always verify that TODO.md is up-to-date before committing and PR code changes.
+- Keep `TODO.md` live during work: mark an item `[ ]` when planned, `[~]` when you begin it, and `[x]` when it's done and verified, so the queue always reflects current state, not just at commit time. 
+- Items in `TODO.md` are define outcomes: what we want, not how to build it. The *how* (chosen approach, file sequence) stays internal to the session and is not a tracked artifact.
+- An item should only be marked as WIP `[~]` if, and only if, there is an active agent working on it (implementation or testing). If an item is partially implemented, split off the todo into done `[x]`  and undone `[ ]` sub-todos. 
+
 - **Triage `Uncategorized`:** these are unsorted items. First sort each with the user into `Implementation` or `Experiments` as a functional bullet (or `RESEARCH.md`, or drop it), then plan it like any item before implementing. Don't implement straight from an unsorted capture.
 - **"Address the next TODOs" ⇒ batch, don't bottleneck.** When the user asks to tackle the next TODO(s), default to picking a *handful* of orthogonal items and parallelizing them across subagents (worktree-isolated, one branch/PR each) — confirm *which* items with the user. **Each subagent marks its own item `[~]` on claim and `[x]` once done and verified**, so `TODO.md` stays an accurate live view of what's in flight.
 
@@ -63,7 +70,7 @@ AGENTS.md/CLAUDE.md RESEARCH.md TODO.md   # top-level md
 
 ## Git
 
-- **Commit messages are ONLY a one-liner with a high-level summary of the commit followed by bullet-point list of the changes made — nothing else.**
+- **Commit messages are ONLY a one-liner with a high-level summary of the commit followed by bullet-point list of the changes made — nothing else.** 
 - Substantially large features go on their own branch and are PR'd into `main`.** If unsure whether something needs its own branch or can go straight to `main`, ask.
 
 ## Secrets
