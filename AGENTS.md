@@ -35,7 +35,7 @@ AGENTS.md/CLAUDE.md RESEARCH.md TODO.md   # top-level md
 
 ## TODO.md workflow
 
-- Keep `TODO.md` live during work: mark an item `[ ]` when planned, `[~]` when you begin it, and `[x]` when it's done and verified, so the queue always reflects current state, not just at commit time. 
+- Keep `TODO.md` live during work: mark an item `[ ]` when planned, `[~]` when you begin it, and `[x]` when it's done and verified, so the queue always reflects current state, not just at commit time. Always verify that TODO.md is up-to-date before committing and PR code changes.
 - **Triage `Uncategorized`:** these are unsorted items. First sort each with the user into `Implementation` or `Experiments` as a functional bullet (or `RESEARCH.md`, or drop it), then plan it like any item before implementing. Don't implement straight from an unsorted capture.
 - **"Address the next TODOs" ⇒ batch, don't bottleneck.** When the user asks to tackle
   the next TODO(s), default to picking a *handful* of orthogonal items and parallelizing
