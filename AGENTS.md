@@ -70,8 +70,10 @@ AGENTS.md/CLAUDE.md RESEARCH.md TODO.md   # top-level md
 
 ## Git
 
-- **Commit messages are ONLY a one-liner with a high-level summary of the commit followed by bullet-point list of the changes made — nothing else.** 
-- Substantially large features go on their own branch and are PR'd into `main`.** If unsure whether something needs its own branch or can go straight to `main`, ask.
+- Commit messages are ONLY a one-liner with a high-level summary of the commit followed by bullet-point list of the changes made — nothing else. 
+  - If the commit addresses an existing issue or PR, reference it in the message with `#<number>.
+- Split orthogonal changes into separate commits where possible.
+- Substantially large features go on their own branch and are PR'd into `main`. If unsure whether something needs its own branch or can go straight to `main`, ask.
 
 ## Secrets
 
