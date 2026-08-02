@@ -48,7 +48,7 @@ AGENTS.md/CLAUDE.md RESEARCH.md TODO.md   # top-level md
 - **Favour fully defining each experiment via a YAML config file.** The YAML should be enough to *fully specify* the experiment — every parameter, input, and setting needed to run and reproduce it — with no hidden state in code or the environment.
 - **When defining an experiment, agree with the user whether it's exploratory ("run and see") or verifiable; if verifiable, set an explicit success criterion and enforce it via a manual check/loop or the `/goal` feature.**
 - **If the codebase runs simulations or trains models, track experiments as specified in [`EXPERIMENT_TRACKING_SQLITE.md`](EXPERIMENT_TRACKING_SQLITE.md).**
-- **To run experiments/jobs on the cluster or remote servers, follow [`CLUSTER_INSTRUCTIONS.md`](CLUSTER_INSTRUCTIONS.md).**
+- **To run experiments/jobs on the cluster or remote servers, follow [`CLUSTER_INSTRUCTIONS.md`](CLUSTER_INSTRUCTIONS.md).** Always use **subagents** to run and manage jobs in remote machines/cluster.
 
 ## Testing
 
