@@ -50,7 +50,7 @@ it is already yours, so you don't stack a second run on your own by accident.
 
 - **One tmux session per job**, named for what it runs (`train-baseline`, `eval-sweep`). Separate jobs on separate GPUs run concurrently — the point of a multi-GPU box.
 - **Redirect to a log (`> log 2>&1`), never `tee`:** with `| tee log` the shell reports `tee`'s exit code, so a crash looks like success (exit 0).
-- Use subagents to run and manage jobs in remote machines to keep the main agent context lean.
+- Use subagents to run and manage remote jobs; the main agent coordinates them and consolidates results, keeping its context lean.
 
 ## PATH gotcha — launch from an interactive shell
 

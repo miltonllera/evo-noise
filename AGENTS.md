@@ -41,7 +41,7 @@ AGENTS.md/CLAUDE.md RESEARCH.md TODO.md   # top-level md
 - An item should only be marked as WIP `[~]` if, and only if, there is an active agent working on it (implementation or testing). If an item is partially implemented, split off the todo into done `[x]`  and undone `[ ]` sub-todos. 
 
 - **Triage `Uncategorized`:** these are unsorted items. First sort each with the user into `Implementation` or `Experiments` as a functional bullet (or `RESEARCH.md`, or drop it), then plan it like any item before implementing. Don't implement straight from an unsorted capture.
-- **"Address the next TODOs" ⇒ batch, don't bottleneck.** When the user asks to tackle the next TODO(s), default to picking a *handful* of orthogonal items and parallelizing them across subagents (worktree-isolated, one branch/PR each) — confirm *which* items with the user. **Each subagent marks its own item `[~]` on claim and `[x]` once done and verified**, so `TODO.md` stays an accurate live view of what's in flight.
+- **"Address the next TODOs" ⇒ batch, don't bottleneck.** When the user asks to tackle the next TODO(s), default to picking a *handful* of orthogonal items and parallelizing them across subagents (using isolated worktrees when needed) — confirm *which* items with the user. **Each subagent marks its own item `[~]` on claim and `[x]` once done and verified**, so `TODO.md` stays an accurate live view of what's in flight.
 
 ## Experiments
 
@@ -52,13 +52,13 @@ AGENTS.md/CLAUDE.md RESEARCH.md TODO.md   # top-level md
 
 ## Testing
 
-- **Test-driven: tests verify the specified features and specs** — their integrity and functionality — not implementation trivia. Favour a few meaningful integration/smoke tests over many trivial unit tests.
+- **Test-driven for code changes:** write the relevant test first, confirm it fails, then make it pass. Tests verify the specified features and specs — their integrity and functionality — not implementation trivia. Favour a few meaningful integration/smoke tests over many trivial unit tests.
   - Trust the run's own emitted outputs (logged metrics, saved artifacts, tracking records), don't re-derive them in the check; a check that recomputes the answer hides bugs in what the run actually produced.
   - Be explicit about what was *not* tested, which regimes, configs, seeds, scales; a result that holds for one setting often silently breaks in another.	
   
 - **Verify with a fresh agent**. When implementing or revising models, simulations or experiments: spawn a clean-context subagent to confirm it works and actually does what the experiment intends, tests run and pass, the behaviour in `TODO.md` is really there, and the implementation matches the experiment's stated goal (not something adjacent that only looks right). For experiment runs: confirm the run genuinely happened, outputs, logs, and tracking records exist and match what was claimed, rather than taking the agent's word. The agent that did the work doesn't grade it.
-- Run the integration and smoke tests before any large commit or PR.
-- Before non-trivial commits, format + lint + typecheck and ensure all pass clean — Python: `ruff format`, `ruff check --fix`, `pyrefly`; TS: `biome check --write`; Rust: `cargo fmt`, `cargo clippy -- -D warnings`; C++: `clang-format -i`, `clang-tidy`.
+- **Match test scope to the change.** For new experiment definitions/configs and minor or localized changes, run only the directly relevant tests or smoke checks — not the full codebase suite. Reserve the full suite for broad changes to shared code, explicit user requests, or required commit/CI gates.
+- Use formatting, linting, and type-checking proportionately, scoped to the touched code when possible. Run the project-relevant checks before broad code changes or required gates — Python: `ruff format`, `ruff check --fix`, `pyrefly`; TS: `biome check --write`; Rust: `cargo fmt`, `cargo clippy -- -D warnings`; C++: `clang-format -i`, `clang-tidy`. Skip tools irrelevant to the files changed.
 
 ## Code style
 
@@ -73,7 +73,7 @@ AGENTS.md/CLAUDE.md RESEARCH.md TODO.md   # top-level md
 - Commit messages are ONLY a one-liner with a high-level summary of the commit followed by bullet-point list of the changes made — nothing else. 
   - If the commit addresses an existing issue or PR, reference it in the message with `#<number>.
 - Split orthogonal changes into separate commits where possible.
-- Substantially large features go on their own branch and are PR'd into `main`. If unsure whether something needs its own branch or can go straight to `main`, ask.
+- Work directly on `main` by default. Use a separate branch only when the user explicitly requests one; for a massive feature, ask whether they want a separate branch before starting.
 
 ## Secrets
 
