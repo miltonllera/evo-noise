@@ -49,7 +49,7 @@ fails, it degrades (offline → disabled) while the authoritative DB on disk is 
 
 A concrete shape this typically takes:
 
-- Each run writes `runs/<run_id>/run.db` (SQLite) as the canonical store, with tables for
+- Each run writes `results/<run_id>/run.db` (SQLite) as the canonical store, with tables for
   run metadata/config, per-step metrics, per-item state, and an optional gated full
   input/output trace.
 - The visualization tools open an **existing** `run.db` read-only and rebuild their
@@ -60,3 +60,5 @@ A concrete shape this typically takes:
   projection of the DB.
 
 > Scaling note: if runs grow very large (≳1 GB) or you need compression, look into transparent page-level compression (`sqlite-zstd`), Parquet export for archival, and DuckDB as an analytics overlay over the SQLite/Parquet files.
+
+The findings derived from `run.db` are written up per [`EXPERIMENT_ANALYSIS.md`](EXPERIMENT_ANALYSIS.md): one analysis file per experiment in `md/experiments/`, indexed in `EXPERIMENTS.md`.
