@@ -14,7 +14,7 @@ discoverable without loading it; `results/` holds only raw artifacts (run.db, lo
 
 1. **`RESEARCH.md` — synthesis only.** What the completed experiments *collectively* say
    about the research questions. No per-run detail, no per-experiment write-ups. It links
-   to [`EXPERIMENTS.md`](EXPERIMENTS.md) for anything deeper.
+   to [`EXPERIMENTS.md`](../../EXPERIMENTS.md) (at the repo root) for anything deeper.
 2. **`EXPERIMENTS.md` (top level, next to RESEARCH.md/TODO.md) — the index.** One table
    row per experiment: `id | date | question | one-line finding | file`. Lean enough that
    reading it is always cheap. This is the entry point for "what have we already done?".

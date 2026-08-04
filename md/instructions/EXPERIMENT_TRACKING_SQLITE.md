@@ -61,4 +61,4 @@ A concrete shape this typically takes:
 
 > Scaling note: if runs grow very large (≳1 GB) or you need compression, look into transparent page-level compression (`sqlite-zstd`), Parquet export for archival, and DuckDB as an analytics overlay over the SQLite/Parquet files.
 
-The findings derived from `run.db` are written up per [`EXPERIMENT_ANALYSIS.md`](EXPERIMENT_ANALYSIS.md): one analysis file per experiment in `md/experiments/`, indexed in `EXPERIMENTS.md`.
+The findings derived from `run.db` are written up per [`EXPERIMENT_ANALYSIS.md`](EXPERIMENT_ANALYSIS.md): one analysis file per experiment in `md/experiments/`, indexed in `EXPERIMENTS.md` (at the repo root).
