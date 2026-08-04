@@ -17,7 +17,7 @@ Generic procedure for launching work on a remote GPU/CPU box from any repo (LLM 
    - The binaries/CLIs it needs are on `PATH` (see PATH gotcha below).
    - Pick a GPU with `nvidia-smi` (see GPU selection below); `htop` / `free -h` for CPU/RAM.
    
-6. **Launch in a descriptively-named tmux session** so it survives disconnects, then **confirm it started** — `tmux new -d` reports success even if the job crashes on startup, so check the log tail.
+6. **Launch in a descriptively-named tmux session** so it survives disconnects, then **confirm it started** — `tmux new -d` reports success even if the job crashes on startup, so wait a few seconds, then check the session still exists and tail the log (and re-check a minute later — slow imports can delay a crash past the first tail).
 
 ```bash
 # local: commit + push your work first
@@ -28,8 +28,8 @@ ssh <machine>
 cd <repo>                                        # git clone first if absent
 git pull                                         # conflict? STOP, ask
 uv sync                                          # no uv? STOP, ask
-tmux new -d -s <name> 'CUDA_VISIBLE_DEVICES=<gpu> uv run <command> > <name>.log 2>&1'
-tail -n 50 <name>.log                            # confirm it started, didn't crash
+tmux new -d -s <name> "zsh -ic 'set -a; source .env; set +a; CUDA_VISIBLE_DEVICES=<gpu> uv run <command> > <name>.log 2>&1'"
+sleep 10; tmux has-session -t <name> && tail -n 50 <name>.log   # confirm it started; re-check in a minute
 # reattach: tmux attach -t <name>  ·  detach: Ctrl-b d  ·  stop: tmux kill-session -t <name>
 ```
 
@@ -54,14 +54,16 @@ it is already yours, so you don't stack a second run on your own by accident.
 
 ## PATH gotcha — launch from an interactive shell
 
-User-installed tools (uv-tool binaries, custom CLIs) are often only on the **interactive** shell PATH (from `~/.zshrc` / `~/.bashrc`). A non-interactive `ssh <machine> 'bash -lc …'` may not see them — so launch from inside the tmux pane (interactive shell) or via `zsh -ic`, never `bash -lc`, or subprocess-spawned binaries won't be found.
+User-installed tools (uv-tool binaries, custom CLIs) are often only on the **interactive** shell PATH (from `~/.zshrc` / `~/.bashrc`). A non-interactive `ssh <machine> 'bash -lc …'` may not see them — so launch from inside the tmux pane (interactive shell) or via `zsh -ic`, never `bash -lc`, or subprocess-spawned binaries won't be found. This is why the launch block above wraps the command in `zsh -ic` — a bare `tmux new -d '<cmd>'` runs through non-interactive `sh` and would miss them too.
+
+## Batch schedulers (Slurm, PBS, LSF, …) — NOT COVERED YET
+
+**⚠️ This doc only covers direct SSH + tmux boxes.** If the target machine uses a batch scheduler (`sbatch`/`squeue`, `qsub`, `bsub` on PATH, or the user mentions Slurm/PBS/LSF), the procedure above does NOT apply — don't grab GPUs manually or launch tmux jobs on login nodes. **STOP and ask the user how to proceed.**
+
+<!-- TODO: fill in scheduler instructions (sbatch conventions, submit-then-verify loop, srun, etc.) -->
 
 ## Secrets / environment variables
 
-Secrets (API keys, tokens) typically live in a gitignored `.env` at the repo root on the remote (`~/<repo>/.env`), not exported by default — source it before the run:
-
-```bash
-set -a; source .env; set +a; uv run <command>
-```
+Secrets (API keys, tokens) typically live in a gitignored `.env` at the repo root on the remote (`~/<repo>/.env`), not exported by default — source it with `set -a; source .env; set +a` **inside the tmux command** (as the launch block above does): the tmux session starts a fresh shell, so sourcing in your SSH session doesn't carry in.
 
 A job missing a key should fail loud; never hard-code a secret to work around it.
