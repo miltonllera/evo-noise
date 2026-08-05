@@ -6,9 +6,12 @@
 src/          # code
 md/           # durable reference knowledge (second brain)
 md/experiments/   # one analysis file per experiment
-md/instructions/  # standing instruction docs (DIAGRAMS.md, EXPERIMENT_ANALYSIS.md, EXPERIMENT_TRACKING_SQLITE.md, CLUSTER_INSTRUCTIONS.md)
+md/instructions/  # standing instruction docs (DIAGRAMS.md, EXPERIMENT_ANALYSIS.md, EXPERIMENT_TRACKING_SQLITE.md, EXPERIMENT_REPORTS.md, CLUSTER_INSTRUCTIONS.md)
 md/DONE.md    # archive of completed TODO items
-results/      # experiment outputs, logs, artifacts
+results/exp-<id>/            # one folder per experiment: outputs, logs, artifacts
+results/exp-<id>/report.html # its self-contained HTML report (tracked in git)
+results/exp-<id>/<run_id>/   # one subdirectory per run, holding run.db (gitignored)
+results/assets/              # vendored report libraries, shared by every report (tracked, so a clone renders offline)
 scripts/			# bash/python scripts to launch experiments (optional)
 configs/      # experiment YAMLs (optional)
 data/         # inputs / datasets (optional)
@@ -61,6 +64,7 @@ AGENTS.md RESEARCH.md TODO.md EXPERIMENTS.md   # top-level md
 - **When defining an experiment, agree with the user whether it's exploratory ("run and see") or verifiable; if verifiable, set an explicit success criterion and enforce it via a manual check/loop or the `/goal` feature.**
 - **If the codebase runs simulations or trains models, track experiments as specified in [`EXPERIMENT_TRACKING_SQLITE.md`](md/instructions/EXPERIMENT_TRACKING_SQLITE.md).**
 - **Record each completed experiment's analysis as specified in [`EXPERIMENT_ANALYSIS.md`](md/instructions/EXPERIMENT_ANALYSIS.md):** one file per experiment in `md/experiments/`, a row in `EXPERIMENTS.md`, and RESEARCH.md updated only if the synthesis changes.
+- **Generate each experiment's HTML report as specified in [`EXPERIMENT_REPORTS.md`](md/instructions/EXPERIMENT_REPORTS.md):** `results/exp-<id>/report.html` — in the experiment's own results folder, beside its runs — built from `run.db` by `scripts/make_report.py` — never hand-written, never with retyped numbers. **Before the project's first report, STOP and interview the user** to fill in that doc's `Project specifics` section (toggleable factors, primary metric, standard figure set); don't guess them.
 - **To run experiments/jobs on the cluster or remote servers, follow [`CLUSTER_INSTRUCTIONS.md`](md/instructions/CLUSTER_INSTRUCTIONS.md).** Always use **subagents** to run and manage jobs in remote machines/cluster.
 
 ## Testing

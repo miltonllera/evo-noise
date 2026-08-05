@@ -49,7 +49,8 @@ fails, it degrades (offline → disabled) while the authoritative DB on disk is 
 
 A concrete shape this typically takes:
 
-- Each run writes `results/<run_id>/run.db` (SQLite) as the canonical store, with tables for
+- Each run writes `results/exp-<id>/<run_id>/run.db` (SQLite) as the canonical store — one
+  folder per experiment, one subdirectory per run inside it — with tables for
   run metadata/config, per-step metrics, per-item state, and an optional gated full
   input/output trace.
 - The visualization tools open an **existing** `run.db` read-only and rebuild their

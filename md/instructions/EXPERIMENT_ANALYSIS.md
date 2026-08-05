@@ -8,7 +8,8 @@ via a lean index, never loaded into context by default.
 
 RESEARCH.md holds only cross-experiment synthesis; each experiment gets one analysis
 file in `md/experiments/`; a lean top-level `EXPERIMENTS.md` index makes past work
-discoverable without loading it; `results/` holds only raw artifacts (run.db, logs, plots).
+discoverable without loading it; `results/exp-<id>/` holds that experiment's raw artifacts
+(run.db, logs, plots) plus its HTML report.
 
 ## The three layers
 
@@ -20,9 +21,15 @@ discoverable without loading it; `results/` holds only raw artifacts (run.db, lo
    reading it is always cheap. This is the entry point for "what have we already done?".
 3. **`md/experiments/<YYYY-MM-DD>-<slug>.md` — one file per experiment**, covering all
    its runs, sweeps, and iterations: hypothesis/question, setup (config file, run_ids
-   pointing at `results/<run_id>/run.db` — the run's canonical record, see
+   pointing at `results/exp-<id>/<run_id>/run.db` — the run's canonical record, see
    [`EXPERIMENT_TRACKING_SQLITE.md`](EXPERIMENT_TRACKING_SQLITE.md)), findings, and
    conclusion. The conclusion's one-liner is mirrored into the `EXPERIMENTS.md` row.
+
+Each experiment also gets a **visual companion**: `results/exp-<id>/report.html`, sitting in the
+experiment's own results folder beside the runs it was built from, generated from `run.db` per
+[`EXPERIMENT_REPORTS.md`](EXPERIMENT_REPORTS.md). The
+analysis file owns the argument; the report owns the figures and the interactive comparison.
+Keep figures and raw numeric tables out of the analysis file — link the report instead.
 
 ## Context semantics: plain links only
 
@@ -42,7 +49,9 @@ When an experiment completes:
 
 1. Write (or update) its `md/experiments/<YYYY-MM-DD>-<slug>.md` file.
 2. Add or update its row in `EXPERIMENTS.md`.
-3. Update `RESEARCH.md` **only if the synthesis changes** — i.e. the result shifts what
+3. Generate (or regenerate) its HTML report — `uv run scripts/make_report.py --exp <id>` — and
+   check the verdict box matches the conclusion one-liner verbatim.
+4. Update `RESEARCH.md` **only if the synthesis changes** — i.e. the result shifts what
    we believe about a research question, not merely adds a data point.
 
 Before designing or re-running an experiment, check `EXPERIMENTS.md` for prior related
@@ -55,12 +64,15 @@ work instead of re-deriving it.
 
 - **Question / hypothesis:** what this experiment tests and why.
 - **Setup:** config file(s) (e.g. `configs/<name>.yaml`), run_ids
-  (e.g. `results/<run_id>/run.db`), and anything needed to reproduce.
+  (e.g. `results/exp-<id>/<run_id>/run.db`), and anything needed to reproduce.
+- **Report:** [`results/exp-<id>/report.html`](../../results/exp-<id>/report.html) — the
+  figures and the interactive comparison.
 
 ## Findings
 
-Per-run / per-sweep observations, key metrics, plots worth referencing
-(link into `results/`).
+Per-run / per-sweep observations and key metrics. Figures live in the report, not here —
+link to it (a report URL carries its control state in the hash, so it can point at exactly
+the comparison being discussed).
 
 ## Conclusion
 
