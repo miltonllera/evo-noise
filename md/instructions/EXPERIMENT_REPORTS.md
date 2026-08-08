@@ -43,7 +43,7 @@ results/                  # regenerable output — entirely gitignored
   <id>/
     report.html           # the report — rebuilt locally, never committed
     <run_id>/run.db       # one subdirectory per run
-    <run_id>/run.db
+    <another_run_id>/run.db
 ```
 
 - `<id>` is the experiment's **semantic id** (see
@@ -83,8 +83,8 @@ Once vendored, the generator has three parts — their docstrings state the boun
 - **`scripts/make_report.py` + `scripts/report_template.html` — the core**, the project's
   house style, written once: read-only record access, digest-verified evidence, page shell,
   shared controls, URL-hash state, one number format, the runs table, offline assets
-  (vendored into `scripts/assets/`, tracked, and **linked** by each page, never inlined
-  into it), CLI.
+  (fetched on first use into the gitignored `results/assets/` and **linked** by each page,
+  never inlined into it), CLI.
 - **`scripts/reports/sections.py` — the section library**: reusable section builders, shared
   by every experiment. Report content accumulates here, not in per-experiment files.
 - **`scripts/reports/<id>.py` — one thin manifest per experiment**: factors, figure set, and
@@ -96,8 +96,9 @@ another builder script or embedding a saved image of something the record can re
 (**embed inputs, render derivations**: a file is embedded when it *is* the data — a target
 image, a dataset sample). Animations likewise render in the browser from the record by
 default, not as pre-rendered video. Git carries what regeneration
-needs — the generator, its template, the section library and the manifests, the vendored
-libraries, configs and analyses — and never what it produces.
+needs — the generator, its template, the section library and the manifests, configs and
+analyses — and never what it produces. Vendored libraries live untracked in
+`results/assets/` and are fetched on first use.
 
 ## Customise before the first report
 
