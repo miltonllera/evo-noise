@@ -91,8 +91,10 @@ Once vendored, the generator has three parts — their docstrings state the boun
   no manifest at all.
 
 Extending a report means composing or growing the library through a manifest — not writing
-another builder script, re-running a model, or embedding a saved image of something the
-record can render (**embed inputs, render derivations**). Git carries what regeneration
+another builder script or embedding a saved image of something the record can render
+(**embed inputs, render derivations**: a file is embedded when it *is* the data — a target
+image, a dataset sample). Animations likewise render in the browser from the record by
+default, not as pre-rendered video. Git carries what regeneration
 needs — the generator, its template, the section library and the manifests, the vendored
 libraries, configs and analyses — and never what it produces.
 
