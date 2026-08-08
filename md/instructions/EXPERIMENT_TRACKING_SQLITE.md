@@ -49,10 +49,15 @@ fails, it degrades (offline → disabled) while the authoritative DB on disk is 
 
 A concrete shape this typically takes:
 
-- Each run writes `results/exp-<id>/<run_id>/run.db` (SQLite) as the canonical store — one
+- Each run writes `results/<id>/<run_id>/run.db` (SQLite) as the canonical store — one
   folder per experiment, one subdirectory per run inside it — with tables for
   run metadata/config, per-step metrics, per-item state, and an optional gated full
-  input/output trace.
+  input/output trace. Run metadata includes the git commit hash of the code at launch,
+  stamped by the launcher; a stamped copy of the config sits beside the DB.
+- **Runs that write files** (images, media, checkpoints) also record each file's relative
+  path and sha256 digest in an artifacts table. Downstream projections — reports above
+  all — treat a file without a recorded digest as non-evidence (see
+  [`EXPERIMENT_REPORTS.md`](EXPERIMENT_REPORTS.md)).
 - The visualization tools open an **existing** `run.db` read-only and rebuild their
   arrays/frames from it — they never re-run the experiment to draw a plot or GIF.
 - The tracker integration has two callers over one code path: the live runner logs rows

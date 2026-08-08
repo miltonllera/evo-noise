@@ -1,0 +1,62 @@
+# SLURM clusters (scheduler-generic)
+
+Any SLURM cluster. Cluster-specific facts (host, partitions, tags, limits) live in that cluster's own doc (e.g. [`ITU_HPC.md`](ITU_HPC.md)) — read both, after [`CLUSTER_INSTRUCTIONS.md`](CLUSTER_INSTRUCTIONS.md). You don't run the work — you describe it in a job script, submit, and poll. The SSH + tmux procedure does **not** apply.
+
+## Rules that get accounts restricted
+
+- **Nothing heavy on the login node** — it's for editing, submitting, and reading the queue. Downloads, installs/`uv sync`, preprocessing, and any long-lived process run as jobs.
+- **Never pick a GPU yourself** — no `nvidia-smi` shopping, no `CUDA_VISIBLE_DEVICES`. Request via `--gres`.
+- **Never let `TMPDIR` default to a shared `/tmp`** — point it where the cluster's doc says (node-local scratch, else `$HOME/tmp`).
+
+## Procedure
+
+1. Commit + push locally; `ssh` in, `cd <repo>` (clone if absent), `git pull`. Conflict/surprise → STOP and ask.
+2. Build the env **as a job** (`uv sync`). Prefer a uv installed in `$HOME` over `module load uv` — module trees can be architecture-specific and missing on the node the job lands on.
+3. One job script per experiment, committed alongside its config.
+4. `sbatch` it; record the launch in the experiment's `EXPERIMENTS.md` row — `server` column `<cluster> (job <jobid>)`, finding column `RUNNING — launched <date>` — and commit it.
+5. Verify it started (`squeue -u $USER`, tail the output file); re-check a minute later — submission success ≠ run success.
+6. On completion `seff <jobid>` — exit state + actual CPU/RAM use; right-size the next submission from it.
+7. Back on the local machine: `rsync` the results over — the `fetch-results` skill's job
+   (`results/` is gitignored, so git never carries them).
+
+```bash
+#!/bin/bash
+#SBATCH --job-name=<id>
+#SBATCH --output=logs/<id>.%j.out       # dir must exist or the job dies at launch
+#SBATCH --partition=<queue>             # see the cluster's doc
+#SBATCH --gres=gpu:1                    # omit for CPU-only
+#SBATCH --constraint=<a>|<b>            # widen: any feature that fits
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=<size>                    # per node; size per experiment (see below), never rely on the default
+#SBATCH --time=04:00:00                 # HARD kill at this limit
+export TMPDIR=$HOME/tmp
+export PATH="$HOME/.local/bin:$PATH"
+export PYTHONUNBUFFERED=1               # else the log looks dead while print() buffers
+set -a; source .env; set +a
+uv run <command>
+```
+
+```bash
+squeue -u $USER            # PD/R + reason ·  squeue --start: est. start
+seff <jobid>               # exit state + efficiency
+sacct -j <jobid> --format=JobID,State,Elapsed,MaxRSS
+scancel <jobid>
+```
+
+- **Maximise the candidate set — queue time is the real cost.** `--constraint` with `|`, untagged `--gres=gpu:N`, comma-listed `--partition`, honest `--time` (short jobs backfill). Pinning one node/GPU model = waiting for that one thing.
+- **Size `--mem` per experiment.** Too low is an OOM kill (exceeding the request kills the job even with free RAM on the node); too high shrinks the candidate-node set and queues longer. `--mem` is per node; `--mem-per-cpu`/`--mem-per-gpu` scale with the other request and are mutually exclusive with it.
+- **`--constraint` selects nodes; `--gres` allocates devices** — you need both for a GPU. Verify a feature tag exists (`sinfo -o "%N %f"`); a constraint matching nothing hangs `PENDING` forever, no error.
+- Sweeps = one array job (`--array=1-N` + `$SLURM_ARRAY_TASK_ID`), not N submissions. Chain stages with `--dependency=afterok:<id>`. Debug via `srun --pty bash -i` (exit promptly — it holds the allocation).
+
+## Output
+
+Home is (normally) shared between login and compute nodes: jobs write to the same paths you see over SSH. Working dir = where `sbatch` ran; stdout+stderr → the `--output` file (default `slurm-<jobid>.out`). `tail -f` it — that's your terminal now. Batch jobs have no tty (prompts hang until the wall clock kills them); interactive needs `srun --pty` / `salloc`.
+
+Looks-broken-but-isn't: Python buffering (hence `PYTHONUNBUFFERED=1`), missing `--output` directory (job dies at launch with nowhere to say so), node-local `/tmp` wiped at job end. Slow dataloaders are usually shared-home NFS; stage to node-local disk only once measured.
+
+## Failure modes
+
+- **`PENDING` forever** — the ask exceeds an account limit or matches no node; read the reason in `squeue`, shrink the request. Resubmitting unchanged queues a second dead job.
+- **Killed at wall clock** — checkpoint long runs; set `--time` from a measured short run.
+- **Runs on login node, `ModuleNotFoundError` in job** — env drift; never `conda init`, keep the env self-contained (`uv run`).
+- **OOM** — `seff` shows RAM OOM; **VRAM OOM shows only in the job log**.

@@ -6,25 +6,25 @@
 src/          # code
 md/           # durable reference knowledge (second brain)
 md/experiments/   # one analysis file per experiment
-md/instructions/  # standing instruction docs (DIAGRAMS.md, EXPERIMENT_ANALYSIS.md, EXPERIMENT_TRACKING_SQLITE.md, EXPERIMENT_REPORTS.md, CLUSTER_INSTRUCTIONS.md)
+md/instructions/  # standing instruction docs (DIAGRAMS.md, EXPERIMENT_ANALYSIS.md, EXPERIMENT_TRACKING_SQLITE.md, EXPERIMENT_REPORTS.md, CLUSTER_INSTRUCTIONS.md + the remote-target docs it routes to)
 md/DONE.md    # archive of completed TODO items
-results/exp-<id>/            # one folder per experiment: outputs, logs, artifacts
-results/exp-<id>/report.html # its self-contained HTML report (tracked in git)
-results/exp-<id>/<run_id>/   # one subdirectory per run, holding run.db (gitignored)
-results/assets/              # vendored report libraries, shared by every report (tracked, so a clone renders offline)
-scripts/			# bash/python scripts to launch experiments (optional)
-configs/      # experiment YAMLs (optional)
+results/<id>/            # one folder per experiment: outputs, logs, artifacts (results/ is entirely gitignored)
+results/<id>/report.html # its self-contained HTML report — regenerated locally, never tracked
+results/<id>/<run_id>/   # one subdirectory per run, holding run.db
+scripts/      # launch scripts; report core (make_report.py + template + vendored assets/) plus scripts/reports/ (shared section library + one manifest per experiment) once the project generates reports (tracked — what regeneration needs to work offline)
+configs/      # experiment YAMLs, one per experiment: <id>.yaml (optional)
 data/         # inputs / datasets (optional)
 AGENTS.md RESEARCH.md TODO.md EXPERIMENTS.md   # top-level md
 ```
 
 - **`AGENTS.md`** — standing conventions and agent guidelines for the project. Treat as read-only during normal work: don't edit it unless the user explicitly asks.
 - **`RESEARCH.md`** — the project and scientific framing: research questions, technical specifications, current status, and the cross-experiment synthesis (what the completed experiments collectively say about the research questions — per-experiment analysis lives in `md/experiments/`, indexed in `EXPERIMENTS.md`, per [`EXPERIMENT_ANALYSIS.md`](md/instructions/EXPERIMENT_ANALYSIS.md)). As the project grows, new information goes into a specific `md/` file and is cross-referenced here.
-- **`EXPERIMENTS.md`** — the lean index of experiments: one row per experiment (`id | date | question | one-line finding | file`), linking to the full analyses in `md/experiments/`. Consult it before designing or re-running an experiment.
+- **`EXPERIMENTS.md`** — the lean index of experiments: one row per experiment (`id | date | question | server | one-line finding | file`), linking to the full analyses in `md/experiments/`. Consult it before designing or re-running an experiment.
 - **`TODO.md`** — an actionable queue of the project's TODOs, split into two sections, `Implementation` (codebase features) and `Experiments` (experiments-to-be-run). Items are functional bullets describing *what* we want (a behaviour, function, outcome, or experiment to run), at whatever level of detail is useful; written by the user, or by the agent during planning. Notation: `[ ]` planned/queued, `[~]` WIP, `[x]` done and verified — an item moves `[ ]` → `[~]` → `[x]` as work progresses. The `Uncategorized` inbox contains raw, unsorted captures (todos, notes, experiment ideas), not yet triaged into the sections above.
 - **Before every non-trivial commit, make sure the following are current:**
   - `TODO.md`: keep it lean. When a feature is done, move a concise record of what was built (outcome plus key files touched) to `md/DONE.md` and leave a one-liner marked `[x]` in `TODO.md`.
   - `RESEARCH.md`: keep status, cross-experiment synthesis, and project direction up to date; keep it lean, don't bloat it (per-experiment analysis goes to `md/experiments/` + `EXPERIMENTS.md`). If unsure whether it needs an update, ask the user.
+  - `EXPERIMENTS.md` / `md/experiments/`: if this commit contains a completed experiment, its analysis file and index row exist (per the [Experiments](#experiments) section) — the report is regenerated locally, never committed. If experiments are in flight, their `RUNNING` rows reflect reality.
   - Plan diagrams: verify the `mermaid` diagrams in `RESEARCH.md`, `EXPERIMENTS.md`, and `TODO.md` still match the text and status of their files (see [`DIAGRAMS.md`](md/instructions/DIAGRAMS.md)).
 
 ## Agent guidelines
@@ -39,16 +39,19 @@ AGENTS.md RESEARCH.md TODO.md EXPERIMENTS.md   # top-level md
 - **Avoid over-engineering solutions; value simplicity and modularity.**
 - **Be extra careful to avoid silent failures.**
 - Use **subagents** whenever possible to delegate and parallelise work efficiently. Choose subagents modes based on task complexity: for trivial and simple tasks such as verifying if test pass, simple implementation, boilerplate, etc. use token-efficient models for the subagents: i.e., Claude's Sonnet or Codex's Terra / gpt-5.6-terra.
-- Keep `TODO.md` up-to-date. Always verify that TODO.md is up-to-date before committing and PR code changes. Don't commit changes or PR if `TODO.md` has items marked as WIP `[~]`.
+- Keep `TODO.md` up-to-date. Always verify that TODO.md is up-to-date before committing and PR code changes. Don't commit changes or PR if `TODO.md` has `Implementation` items marked as WIP `[~]`. `Experiments` items are exempt: a launched experiment stays `[~]` for the whole life of its run, and launching *requires* committing (the remote pulls from git) — an in-flight `RUNNING` row in `EXPERIMENTS.md` never blocks a commit.
 - `md/` is the project's second brain for durable reference knowledge (code and experiment scripts docs, methodology, model/hyperparameter rationale, dataset descriptions, preprocessing, workflows, agent instructions), not results or data (those live in `results/` and `data/`). Record what's worth keeping long-term and consulting again, not transient or one-off detail; consult `md/` before re-deriving something that may already be documented. Put new detail in a specific `md/` file and cross-reference it in RESEARCH.md (kept lean, per the pre-commit checklist above).
+  - **`md/` is not a dump — every write must earn its place.** Most information already has a home: status and synthesis in `RESEARCH.md`, per-experiment analysis in `md/experiments/`, tasks in `TODO.md`, completed work in `md/DONE.md`, outputs and data in `results/` and `data/` — put it there first. Add something to `md/` only when you can name how and when it will be consulted again. If it's transient (an offloaded plan, working notes for a task in flight), it carries a lifecycle: state what it's for, and delete it once it has served that purpose — don't leave session scratch behind as if it were reference.
   - Link syntax: always use plain markdown links (`[text](path)`) for cross-references, never bare `@file.md` refs — `@` refs auto-load the target into context every session in Claude Code, while Codex treats them as plain text. When a link climbs out of a subfolder (`../`, `../../`), add a brief locator note like "(at the repo root)".
 - Match the user's own terms in notes, comments, commits, and docs; don't paraphrase, relabel, or "improve" their wording.
 
 ## TODO.md workflow
 
 - Keep `TODO.md` live during work: mark an item `[ ]` when planned, `[~]` when you begin it, and `[x]` when it's done and verified, so the queue always reflects current state, not just at commit time. 
-- Items in `TODO.md` define outcomes: what we want, not how to build it. The *how* (chosen approach, file sequence) stays internal to the session and is not a tracked artifact.
-- An item should only be marked as WIP `[~]` if, and only if, there is an active agent working on it (implementation or testing). If an item is partially implemented, split off the todo into done `[x]`  and undone `[ ]` sub-todos. 
+- Items in `TODO.md` define outcomes: what we want, not how to build it. The *how* (chosen approach, file sequence) stays internal to the session and is not a tracked artifact — with one exception: for a feature large enough that losing the session would lose the agreed design, offload the plan to a transient `md/plan-<topic>.md` and link it from the item, so a successor agent can pick up mid-implementation.
+  - The plan file holds **only what was agreed with the user** — the scope and decisions from the planning discussion, at the level of detail they were actually discussed. Don't elaborate beyond that or improvise specifics the user never signed off on: plans feature-creep easily, and an over-detailed plan reads as agreed scope when it isn't.
+  - Lifecycle (per the `md/` rule above): the plan file lives only while its item is `[ ]`/`[~]`; whoever completes the item deletes it, folding anything durable into `md/` proper or `md/DONE.md`.
+- An item should only be marked as WIP `[~]` if, and only if, there is an active agent working on it (implementation or testing). If an item is partially implemented, split off the todo into done `[x]`  and undone `[ ]` sub-todos. Exception: an `Experiments` item whose job is executing on a machine or cluster stays `[~]` until the results are fetched and analysed — the running job is the active worker, no agent needs to be attached.
 
 - **Triage `Uncategorized`:** these are unsorted items. First sort each with the user into `Implementation` or `Experiments` as a functional bullet (or `RESEARCH.md`, or drop it), then plan it like any item before implementing. Don't implement straight from an unsorted capture.
 - **"Address the next TODOs" ⇒ batch, don't bottleneck.** When the user asks to tackle the next TODO(s), default to picking a *handful* of orthogonal items and parallelizing them across subagents (using isolated worktrees when needed) — confirm *which* items with the user. **Each subagent marks its own item `[~]` on claim and `[x]` once done and verified**, so `TODO.md` stays an accurate live view of what's in flight.
@@ -61,11 +64,14 @@ AGENTS.md RESEARCH.md TODO.md EXPERIMENTS.md   # top-level md
 ## Experiments
 
 - **Favour fully defining each experiment via a YAML config file.** The YAML should be enough to *fully specify* the experiment — every parameter, input, and setting needed to run and reproduce it — with no hidden state in code or the environment.
+- **Name experiments with semantic ids** — one to three words saying what the experiment did (`field-sparsity`), never a bare number; a trailing number only marks a repeat of the same experiment. The same string names `configs/<id>.yaml`, `results/<id>/`, the `EXPERIMENTS.md` row, the analysis file and the report title (per [`EXPERIMENT_ANALYSIS.md`](md/instructions/EXPERIMENT_ANALYSIS.md)).
+- **Stamp code provenance at launch:** the launcher records the current git commit hash in the run's `run.db` metadata and saves a stamped copy of the YAML (with the hash) next to it in `results/<id>/<run_id>/`. Reproducing a run = check out that commit + run its YAML.
 - **When defining an experiment, agree with the user whether it's exploratory ("run and see") or verifiable; if verifiable, set an explicit success criterion and enforce it via a manual check/loop or the `/goal` feature.**
 - **If the codebase runs simulations or trains models, track experiments as specified in [`EXPERIMENT_TRACKING_SQLITE.md`](md/instructions/EXPERIMENT_TRACKING_SQLITE.md).**
+- **Track running experiments live in `EXPERIMENTS.md`:** at launch, add the experiment's row — `server` column naming the machine or cluster plus the job/session id, finding column `RUNNING — launched <date>` — and commit it; the one-line finding replaces the marker at completion (per [`EXPERIMENT_ANALYSIS.md`](md/instructions/EXPERIMENT_ANALYSIS.md)). This row is how any agent sees what is running where — and where the `fetch-results` skill reads the pull source from.
 - **Record each completed experiment's analysis as specified in [`EXPERIMENT_ANALYSIS.md`](md/instructions/EXPERIMENT_ANALYSIS.md):** one file per experiment in `md/experiments/`, a row in `EXPERIMENTS.md`, and RESEARCH.md updated only if the synthesis changes.
-- **Generate each experiment's HTML report as specified in [`EXPERIMENT_REPORTS.md`](md/instructions/EXPERIMENT_REPORTS.md):** `results/exp-<id>/report.html` — in the experiment's own results folder, beside its runs — built from `run.db` by `scripts/make_report.py` — never hand-written, never with retyped numbers. **Before the project's first report, STOP and interview the user** to fill in that doc's `Project specifics` section (toggleable factors, primary metric, standard figure set); don't guess them.
-- **To run experiments/jobs on the cluster or remote servers, follow [`CLUSTER_INSTRUCTIONS.md`](md/instructions/CLUSTER_INSTRUCTIONS.md).** Always use **subagents** to run and manage jobs in remote machines/cluster.
+- **Generate each experiment's HTML report as specified in [`EXPERIMENT_REPORTS.md`](md/instructions/EXPERIMENT_REPORTS.md):** `results/<id>/report.html` — in the experiment's own results folder, beside its runs — built from `run.db` via the `generate-report` skill (it inspects the repo and uses the project's own generator if one exists, offering to vendor its versioned starter with the user otherwise) — never hand-written, never with retyped numbers, never committed: `results/` is gitignored and reports are regenerated locally. **Before the project's first report, STOP and interview the user** to fill in that doc's `Project specifics` section (toggleable factors, primary metric, standard figure set); don't guess them.
+- **To run experiments/jobs on the cluster or remote servers, start at [`CLUSTER_INSTRUCTIONS.md`](md/instructions/CLUSTER_INSTRUCTIONS.md)** — it routes to the doc for the specific target (SSH box, ITU HPC, other clusters). Always use **subagents** to run and manage jobs in remote machines/cluster. Retrieve a finished experiment's runs with the `fetch-results` skill.
 
 ## Testing
 
