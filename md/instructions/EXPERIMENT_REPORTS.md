@@ -1,7 +1,7 @@
 # HTML experiment reports
 
-Each experiment's results are presented as a **single self-contained HTML page** — lean,
-concise, with toggles to swap between experimental conditions the way a W&B dashboard does.
+Each experiment's results are presented as a **single HTML page** — lean, concise, with
+toggles to swap between experimental conditions the way a W&B dashboard does.
 One report per experiment, generated from `run.db`, never hand-written — and never tracked:
 like every other projection of the run records, it is rebuilt locally on demand.
 
@@ -83,7 +83,8 @@ Once vendored, the generator has three parts — their docstrings state the boun
 - **`scripts/make_report.py` + `scripts/report_template.html` — the core**, the project's
   house style, written once: read-only record access, digest-verified evidence, page shell,
   shared controls, URL-hash state, one number format, the runs table, offline assets
-  (vendored into `scripts/assets/`, tracked), CLI.
+  (vendored into `scripts/assets/`, tracked, and **linked** by each page, never inlined
+  into it), CLI.
 - **`scripts/reports/sections.py` — the section library**: reusable section builders, shared
   by every experiment. Report content accumulates here, not in per-experiment files.
 - **`scripts/reports/<id>.py` — one thin manifest per experiment**: factors, figure set, and
@@ -130,8 +131,10 @@ When an experiment completes, after its analysis file exists (per
    skills.
 
 Regenerate whenever the runs, the metrics, or the analysis file's diagram change. The report
-is a projection — it is always cheaper to rebuild than to patch. A generated report is one
-portable file (data and libraries inlined): to share it outside the repo, send the file as-is.
+is a projection — it is always cheaper to rebuild than to patch. A report is **not a portable
+single file**: it links the vendored libraries and renders in place, beside the runs it
+projects. To give someone the evidence outside the repo, have them regenerate it — the two
+skills rebuild it from the records — rather than mailing the page.
 
 ## Project specifics
 

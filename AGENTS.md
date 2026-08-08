@@ -9,7 +9,7 @@ md/experiments/   # one analysis file per experiment
 md/instructions/  # standing instruction docs (DIAGRAMS.md, EXPERIMENT_ANALYSIS.md, EXPERIMENT_TRACKING_SQLITE.md, EXPERIMENT_REPORTS.md, CLUSTER_INSTRUCTIONS.md + the remote-target docs it routes to)
 md/DONE.md    # archive of completed TODO items
 results/<id>/            # one folder per experiment: outputs, logs, artifacts (results/ is entirely gitignored)
-results/<id>/report.html # its self-contained HTML report — regenerated locally, never tracked
+results/<id>/report.html # its HTML report — regenerated locally in place, never tracked
 results/<id>/<run_id>/   # one subdirectory per run, holding run.db
 scripts/      # launch scripts; report core (make_report.py + template + vendored assets/) plus scripts/reports/ (shared section library + one manifest per experiment) once the project generates reports (tracked — what regeneration needs to work offline)
 configs/      # experiment YAMLs, one per experiment: <id>.yaml (optional)
