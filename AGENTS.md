@@ -11,7 +11,7 @@ md/DONE.md    # archive of completed TODO items
 results/<id>/            # one folder per experiment: outputs, logs, artifacts (results/ is entirely gitignored)
 results/<id>/report.html # its HTML report — regenerated locally in place, never tracked
 results/<id>/<run_id>/   # one subdirectory per run, holding run.db
-scripts/      # launch scripts; report core (make_report.py + template + vendored assets/) plus scripts/reports/ (shared section library + one manifest per experiment) once the project generates reports (tracked — what regeneration needs to work offline)
+scripts/      # launch scripts; report core
 configs/      # experiment YAMLs, one per experiment: <id>.yaml (optional)
 data/         # inputs / datasets (optional)
 AGENTS.md RESEARCH.md TODO.md EXPERIMENTS.md   # top-level md
