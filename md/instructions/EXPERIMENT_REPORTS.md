@@ -47,7 +47,7 @@ results/                  # regenerable output — entirely gitignored
 ```
 
 - `<id>` is the experiment's **semantic id** (see
-  [`EXPERIMENT_ANALYSIS.md`](EXPERIMENT_ANALYSIS.md)): one to three words naming what the
+  [`EXPERIMENT_ANALYSIS.md`](EXPERIMENT_ANALYSIS.md)): two to four words naming what the
   experiment did — `field-sparsity`, `hidden-trajectory-fieldfree` — never a bare number.
   The same string names `configs/<id>.yaml`, `results/<id>/`, the analysis file, the
   [`EXPERIMENTS.md`](../../EXPERIMENTS.md) row (at the repo root) and the report title, so

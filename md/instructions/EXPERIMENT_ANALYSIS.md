@@ -13,7 +13,7 @@ discoverable without loading it; `results/<id>/` holds that experiment's raw art
 
 ## Experiment ids
 
-An experiment's `<id>` is **semantically informative**: one to three hyphenated words saying
+An experiment's `<id>` is **semantically informative**: two to four hyphenated words saying
 what the experiment did — `field-sparsity`, `hidden-trajectory-fieldfree` — never a bare
 number or a random codename.
 
