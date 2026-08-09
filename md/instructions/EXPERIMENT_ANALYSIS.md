@@ -68,6 +68,8 @@ item `[~]`) → completed (the row carries the one-line finding, the item `[x]`)
 
 When an experiment **launches** (locally or remotely):
 
+Remote launches run the exact commit pulled from GitHub over SSH; tracked changes stay local (see [`CLUSTER_INSTRUCTIONS.md`](CLUSTER_INSTRUCTIONS.md)).
+
 1. Add its row to `EXPERIMENTS.md` immediately: the `server` column set to
    `<target> (<job/session id>)` — the machine (its `~/.ssh/config` name) or cluster,
    precise enough that the `fetch-results` skill knows where to pull `results/<id>/`
@@ -77,9 +79,8 @@ When an experiment **launches** (locally or remotely):
 2. Tag its node `:::wip` in the experiments map, and keep its `TODO.md` item `[~]` for as
    long as the run executes — a running remote job counts as work in progress even with
    no agent attached.
-3. Commit the row update — a `RUNNING` marker is only useful if other agents and machines
-   can see it. In-flight experiment rows never block a commit (unlike `Implementation`
-   WIP items — see AGENTS.md).
+3. Commit the row update locally and push it to GitHub via `origin`. In-flight experiment rows never
+   block a commit (unlike `Implementation` WIP items — see AGENTS.md).
 
 When an experiment completes:
 

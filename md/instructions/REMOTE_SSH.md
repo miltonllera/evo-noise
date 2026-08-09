@@ -4,11 +4,30 @@ Launching work on a remote GPU/CPU box we own the GPUs on, from any repo (LLM or
 
 **Wrong doc?** If `sbatch`/`squeue` are on PATH, this procedure does not apply — go back to the index.
 
+## Available machines
+
+Keep this inventory and all machine-specific notes here; never create one instruction file per SSH machine.
+
+| Machine | CPU | RAM | GPU | Notes |
+|---|---|---:|---|---|
+| `tripper2` | Threadripper 3990X (64 cores / 128 threads) | 125 GiB | 1× RTX 4090 (24 GiB) | — |
+| `tripper4` | Threadripper 3990X (64 cores / 128 threads) | 251 GiB | 1× RTX 3090 (24 GiB) | Tailscale network |
+| `miami` | Threadripper 3990X (64 cores / 128 threads) | 251 GiB | 1× RTX 3070 Ti (8 GiB) | — |
+| `disco` | 2× EPYC (128 cores / 256 threads) | 503 GiB | 8× RTX 6000 Ada (48 GiB each) | — |
+| `grime` | 2× EPYC 7763 (128 cores / 256 threads) | 503 GiB | 8× RTX 6000 Ada (48 GiB each) | — |
+| `jungle` | 2× EPYC 9554 (128 cores / 256 threads) | 503 GiB | 8× RTX 6000 Ada (48 GiB each) | — |
+| `dada` | Threadripper PRO 5995WX (64 cores / 128 threads) | 503 GiB | 4× RTX 6000 Ada (48 GiB each) | — |
+| `vapor` | EPYC 9124 (16 cores / 32 threads) | 377 GiB | 4× RTX A6000 (48 GiB each) | — |
+
+## Notes
+
+- Prefer `tripper2`, `tripper4`, and `miami` for CPU-heavy, multicore/multithread experiments with no or light GPU use.
+
 ## The procedure
 
-1. **Commit and push locally**, then **SSH by config name:** `ssh <machine>`. The repo lives at `~/<repo>` (so `cd <repo>`); `git clone` it first if absent, then check out the branch.
+1. **Commit locally and push to GitHub via `origin`**, then **SSH by config name:** `ssh <machine>`. The repo lives at `~/<repo>` (so `cd <repo>`); clone it from GitHub over SSH first if absent.
 
-2. **Pull the branch** you just pushed (skip if you just cloned). Conflict or surprise → STOP and ask.
+2. **Pull and verify `HEAD` is the exact pushed commit.** Conflict, dirty tree, or other surprise → STOP and ask.
 
 3. **`uv sync`** to create/update the env.
 
@@ -17,20 +36,17 @@ Launching work on a remote GPU/CPU box we own the GPUs on, from any repo (LLM or
    - The binaries/CLIs it needs are on `PATH` (see PATH gotcha below).
    - Pick a GPU with `nvidia-smi` (see GPU selection below); `htop` / `free -h` for CPU/RAM.
 
-5. **Launch in a descriptively-named tmux session** so it survives disconnects, then **confirm it started** — `tmux new -d` reports success even if the job crashes on startup, so wait a few seconds, then check the session still exists and tail the log (and re-check a minute later — slow imports can delay a crash past the first tail). Once confirmed, fill the experiment's `EXPERIMENTS.md` row — `server` column `<machine> (tmux <name>)`, finding column `RUNNING — launched <date>` — and commit it, so any agent can see what runs where.
+5. **Launch in a descriptively-named tmux session** so it survives disconnects, then **confirm it started** — `tmux new -d` reports success even if the job crashes on startup, so wait a few seconds, then check the session still exists and tail the log (and re-check a minute later — slow imports can delay a crash past the first tail). Once confirmed, return to the local checkout, fill the experiment's `EXPERIMENTS.md` row — `server` column `<machine> (tmux <name>)`, finding column `RUNNING — launched <date>` — then commit and push it to GitHub via `origin`.
 
 6. **Back on the local machine, when the job finishes**: retrieve results with `rsync` —
    the `fetch-results` skill's job. Every local machine that needs the results fetches its
    own copy.
 
 ```bash
-# local: commit + push your work first
-git commit -am "<message>" && git push          # whatever branch you're on
-
-# remote
+# remote, after the exact GitHub commit has been pulled
 ssh <machine>
-cd <repo>                                        # git clone first if absent
-git pull                                         # conflict? STOP, ask
+cd <repo>
+git pull --ff-only                               # conflict/surprise? STOP, ask
 uv sync                                          # no uv? STOP, ask
 tmux new -d -s <name> "zsh -ic 'set -a; source .env; set +a; CUDA_VISIBLE_DEVICES=<gpu> uv run <command> > <name>.log 2>&1'"
 sleep 10; tmux has-session -t <name> && tail -n 50 <name>.log   # confirm it started; re-check in a minute

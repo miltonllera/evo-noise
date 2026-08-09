@@ -10,10 +10,10 @@ Any SLURM cluster. Cluster-specific facts (host, partitions, tags, limits) live 
 
 ## Procedure
 
-1. Commit + push locally; `ssh` in, `cd <repo>` (clone if absent), `git pull`. Conflict/surprise → STOP and ask.
+1. Commit locally and push to GitHub via `origin`; `ssh` in, clone/pull from GitHub over SSH, and verify `HEAD` is the exact pushed commit. Conflict, dirty tree, or other surprise → STOP and ask.
 2. Build the env **as a job** (`uv sync`). Prefer a uv installed in `$HOME` over `module load uv` — module trees can be architecture-specific and missing on the node the job lands on.
 3. One job script per experiment, committed alongside its config.
-4. `sbatch` it; record the launch in the experiment's `EXPERIMENTS.md` row — `server` column `<cluster> (job <jobid>)`, finding column `RUNNING — launched <date>` — and commit it.
+4. `sbatch` it; back in the local checkout, record the launch in the experiment's `EXPERIMENTS.md` row — `server` column `<cluster> (job <jobid>)`, finding column `RUNNING — launched <date>` — then commit and push it to GitHub via `origin`.
 5. Verify it started (`squeue -u $USER`, tail the output file); re-check a minute later — submission success ≠ run success.
 6. On completion `seff <jobid>` — exit state + actual CPU/RAM use; right-size the next submission from it.
 7. Back on the local machine: `rsync` the results over — the `fetch-results` skill's job
