@@ -25,7 +25,7 @@ Keep this inventory and all machine-specific notes here; never create one instru
 
 ## The procedure
 
-1. **Commit locally and push to GitHub via `origin`**, then **SSH by config name:** `ssh <machine>`. The repo lives at `~/<repo>` (so `cd <repo>`); clone it from GitHub over SSH first if absent.
+1. **Commit locally and push to GitHub via `origin`**, then **SSH by config name:** `ssh <machine>`. The repo lives at `~/<repo>` — the GitHub repository name, always (so `cd ~/<repo>`); clone it from GitHub over SSH first if absent. Confirm it is the right checkout with `git -C ~/<repo> remote get-url origin`; a checkout under any other name → STOP and ask.
 
 2. **Pull and verify `HEAD` is the exact pushed commit.** Conflict, dirty tree, or other surprise → STOP and ask.
 
@@ -36,7 +36,7 @@ Keep this inventory and all machine-specific notes here; never create one instru
    - The binaries/CLIs it needs are on `PATH` (see PATH gotcha below).
    - Pick a GPU with `nvidia-smi` (see GPU selection below); `htop` / `free -h` for CPU/RAM.
 
-5. **Launch in a descriptively-named tmux session** so it survives disconnects, then **confirm it started** — `tmux new -d` reports success even if the job crashes on startup, so wait a few seconds, then check the session still exists and tail the log (and re-check a minute later — slow imports can delay a crash past the first tail). Once confirmed, return to the local checkout, fill the experiment's `EXPERIMENTS.md` row — `server` column `<machine> (tmux <name>)`, finding column `RUNNING — launched <date>` — then commit and push it to GitHub via `origin`.
+5. **Launch in a descriptively-named tmux session** so it survives disconnects, then **confirm it started**. Once confirmed, return to the local checkout, set the experiment row's `server` to `<machine> (tmux <name>)` and `status` to `RUNNING`, then commit and push. When the process ends, set `COMPLETED`, `FAILED`, or `ABORTED` from execution state; do not write analysis.
 
 6. **Back on the local machine, when the job finishes**: retrieve results with `rsync` —
    the `fetch-results` skill's job. Every local machine that needs the results fetches its
@@ -45,7 +45,8 @@ Keep this inventory and all machine-specific notes here; never create one instru
 ```bash
 # remote, after the exact GitHub commit has been pulled
 ssh <machine>
-cd <repo>
+cd ~/<repo>                                      # always the GitHub repo name; not there? STOP, ask
+git remote get-url origin                        # must be this repo's GitHub SSH URL
 git pull --ff-only                               # conflict/surprise? STOP, ask
 uv sync                                          # no uv? STOP, ask
 tmux new -d -s <name> "zsh -ic 'set -a; source .env; set +a; CUDA_VISIBLE_DEVICES=<gpu> uv run <command> > <name>.log 2>&1'"

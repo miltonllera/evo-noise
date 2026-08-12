@@ -5,7 +5,7 @@ Each plan carries a standing `mermaid` diagram, embedded next to the content it 
 ## The three diagrams
 
 - **RESEARCH.md — research plan**: a question tree grouped in phase subgraphs. Phases are `subgraph` boxes linked in sequence; inside them, research questions branch into the experiment groups that answer them.
-- **EXPERIMENTS.md — experiments map** (below the index table): a DAG of concrete experiments (nodes are the experiment ids — already semantic, e.g. `field-sparsity`); an edge means "motivated/unlocked" and is labelled with the one-line finding that led to the child experiment — the diagram reads as the narrative of the research. Edge labels are high-level comments relevant for the research (what the finding means for the research questions), not low-level details (parameters, metrics, implementation notes) — those stay in the table and `md/experiments/`. Node status mirrors the index: `:::wip` while an experiment's row says `RUNNING`, `:::done` once it has its finding, `:::queued` while it's still a `[ ]` item in TODO.md.
+- **EXPERIMENTS.md — experiments map**: a DAG of concrete experiment ids. An edge means “motivated/unlocked” and may state why the child experiment was launched; it never states or infers a finding. Node style mirrors execution status: `PLANNED` → `:::queued`, `RUNNING` → `:::wip`, and `COMPLETED`/`FAILED`/`ABORTED` → `:::done`.
 - **TODO.md — implementation roadmap** (top of the `Implementation` section): a left-to-right flowchart of features/components in dependency order, at a coarser grain than the bullets (feature-level nodes, not sub-tasks).
 
 ## Conventions
@@ -17,5 +17,5 @@ Each plan carries a standing `mermaid` diagram, embedded next to the content it 
   classDef queued fill:none,stroke-dasharray:4 3
   ```
   Tag nodes with `:::done`, `:::wip`, `:::queued`.
-- **Diagrams are maps, not dumps**: ~15 nodes max, short node/edge labels. If a diagram outgrows that, raise the abstraction level; for the experiments map, shorten or drop edge labels first — the full findings stay in the table.
+- **Diagrams are maps, not dumps**: ~15 nodes max, short node/edge labels. If a diagram outgrows that, raise the abstraction level and shorten or drop edge labels first.
 - **Update a diagram in the same edit as the plan/status text it reflects**, so diagrams and text never drift apart.

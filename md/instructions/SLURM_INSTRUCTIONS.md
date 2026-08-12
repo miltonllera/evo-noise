@@ -10,12 +10,12 @@ Any SLURM cluster. Cluster-specific facts (host, partitions, tags, limits) live 
 
 ## Procedure
 
-1. Commit locally and push to GitHub via `origin`; `ssh` in, clone/pull from GitHub over SSH, and verify `HEAD` is the exact pushed commit. Conflict, dirty tree, or other surprise → STOP and ask.
+1. Commit locally and push to GitHub via `origin`; `ssh` in, clone/pull from GitHub over SSH into `~/<repo>` — the GitHub repository name, always — and verify `HEAD` is the exact pushed commit. Conflict, dirty tree, a checkout under another name, or other surprise → STOP and ask.
 2. Build the env **as a job** (`uv sync`). Prefer a uv installed in `$HOME` over `module load uv` — module trees can be architecture-specific and missing on the node the job lands on.
 3. One job script per experiment, committed alongside its config.
-4. `sbatch` it; back in the local checkout, record the launch in the experiment's `EXPERIMENTS.md` row — `server` column `<cluster> (job <jobid>)`, finding column `RUNNING — launched <date>` — then commit and push it to GitHub via `origin`.
+4. `sbatch` it; back in the local checkout, set the experiment row's `server` to `<cluster> (job <jobid>)` and `status` to `RUNNING`, then commit and push it to GitHub via `origin`.
 5. Verify it started (`squeue -u $USER`, tail the output file); re-check a minute later — submission success ≠ run success.
-6. On completion `seff <jobid>` — exit state + actual CPU/RAM use; right-size the next submission from it.
+6. On termination, inspect `seff <jobid>` and set the row to `COMPLETED`, `FAILED`, or `ABORTED` from execution state. Do not create analysis or findings.
 7. Back on the local machine: `rsync` the results over — the `fetch-results` skill's job
    (`results/` is gitignored, so git never carries them).
 
