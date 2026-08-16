@@ -40,7 +40,17 @@ project specifics below.
 
 The generator has one shared core/template, reusable section builders, and thin
 per-experiment manifests. Section builders stay generic; which ones an experiment uses, on
-which data and with which settings, is declared in its manifest. When an experiment needs
+which data and with which settings, is declared in its manifest.
+
+**The manifest is authored at definition time** — `scripts/reports/<id>.py`, with
+`configs/<id>.yaml` and the `PLANNED` row in `EXPERIMENTS.md`, same id. It declares
+structure (factors, single-select ones, figure set, sections), never expected results.
+`generate-report` runs the generator; it does not author manifests — a tracked file. A
+missing manifest is a definition gap the project defaults must not paper over (records that
+don't match them render a page with no runs), so the report request stops there and the
+manifest is added as its own, user-authorized change.
+
+When an experiment needs
 new content: use an existing function if it already fits; extend one only when the extension
 provably leaves its output for existing manifests unchanged (new optional parameter, current
 default); otherwise write a new function. Older reports must stay regenerable without

@@ -68,7 +68,7 @@ AGENTS.md RESEARCH.md TODO.md EXPERIMENTS.md   # top-level md
 ## Experiments
 
 - **Favour fully defining each experiment via a YAML config file.** The YAML should be enough to *fully specify* the experiment — every parameter, input, and setting needed to run and reproduce it — with no hidden state in code or the environment.
-- **Agree every experiment name/id with the user during experiment definition.** Use the same semantic id in `configs/<id>.yaml`, `results/<id>/`, and `EXPERIMENTS.md`; an explicitly requested analysis, if any, uses `md/experiments/<date>-<id>.md`.
+- **Agree every experiment name/id with the user during experiment definition.** Use the same semantic id in `configs/<id>.yaml`, `results/<id>/`, `EXPERIMENTS.md`, and the report manifest `scripts/reports/<id>.py`, authored at definition time (see [`EXPERIMENT_REPORTS.md`](md/instructions/EXPERIMENT_REPORTS.md)); an explicitly requested analysis, if any, uses `md/experiments/<date>-<id>.md`.
 - **Stamp code provenance at launch:** the launcher records the current git commit hash in the run's `run.db` metadata and saves a stamped copy of the YAML (with the hash) next to it in `results/<id>/<run_id>/`. Reproducing a run = check out that commit + run its YAML.
 - **When defining an experiment, agree with the user whether it's exploratory ("run and see") or verifiable; if verifiable, set an explicit success criterion and enforce it via a manual check/loop or the `/goal` feature.**
 - **If the codebase runs simulations or trains models, track experiments as specified in [`EXPERIMENT_TRACKING_SQLITE.md`](md/instructions/EXPERIMENT_TRACKING_SQLITE.md).**
