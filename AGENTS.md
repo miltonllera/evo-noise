@@ -26,6 +26,7 @@ AGENTS.md RESEARCH.md TODO.md EXPERIMENTS.md   # top-level md
   - `RESEARCH.md`: keep framing, plan, and factual project status current. Do not add analysis or synthesis merely because an experiment completed.
   - `EXPERIMENTS.md`: execution statuses reflect reality. Analysis links and HTML reports are independent and never prerequisites for completion.
   - Plan diagrams: verify the `mermaid` diagrams in `RESEARCH.md`, `EXPERIMENTS.md`, and `TODO.md` still match the text and status of their files (see [`DIAGRAMS.md`](md/instructions/DIAGRAMS.md)).
+  - `md/`: any doc this change makes stale is updated or deleted in the same commit.
 
 ## Agent guidelines
 
@@ -36,12 +37,15 @@ AGENTS.md RESEARCH.md TODO.md EXPERIMENTS.md   # top-level md
 
 - **Build only what was asked / what's in the plan — no feature creep.** If something unspecified seems necessary or useful, check with the user rather than just adding it.
 - **Don't make assumptions: when anything is ambiguous or underspecified, check in with the user**. Don't be shy to **ask clarifying questions** to identify ambiguities, edge cases, underspecified behaviors, design preferences, and performance needs.
+  - **"Godspeed"** — the keyword for an overnight/over-weekend run where the user can't reply. The plan is already agreed; lean towards working things out yourself within its scope rather than blocking on a question, keep a record of the decisions you take, and surface them when the user comes back.
 - **Avoid over-engineering solutions; value simplicity and modularity.**
 - **Be extra careful to avoid silent failures.**
 - Use **subagents** whenever possible to delegate and parallelise work efficiently. Choose subagents modes based on task complexity: for trivial and simple tasks such as verifying if test pass, simple implementation, boilerplate, etc. use token-efficient models for the subagents: i.e., Claude's Sonnet or Codex's Terra / gpt-5.6-terra.
 - Keep `TODO.md` up-to-date. Always verify that TODO.md is up-to-date before committing and PR code changes. Don't commit changes or PR if `TODO.md` has `Implementation` items marked as WIP `[~]`. `Experiments` items are exempt: a launched experiment stays `[~]` for the whole life of its run, and launching *requires* committing and pushing its live record to GitHub via `origin` — an in-flight `RUNNING` row in `EXPERIMENTS.md` never blocks a commit.
 - `md/` is the project's second brain for durable reference knowledge (code and experiment scripts docs, methodology, model/hyperparameter rationale, dataset descriptions, preprocessing, workflows, agent instructions), not results or data (those live in `results/` and `data/`). Analysis is written only after a direct user request, never as routine experiment bookkeeping.
-  - **`md/` is not a dump — every write must earn its place.** Put factual status in `RESEARCH.md`, execution state and optional analysis links in `EXPERIMENTS.md`, tasks in `TODO.md`, completed work in `md/DONE.md`, and outputs/data in `results/` and `data/`.
+  - **`md/` is not a dump — every write must earn its place.** Put factual status in `RESEARCH.md`, execution state and optional analysis links in `EXPERIMENTS.md`, tasks in `TODO.md`, completed work in `md/DONE.md`, and outputs/data in `results/` and `data/`. Add something to `md/` only when you can name how and when it will be consulted again.
+  - **Updating an existing `md/` file is autonomous — but keep it lean; creating a new one is not — ask the user first** (same rule as feature creep: if a new doc seems necessary, check rather than just adding it). The only exceptions are the transient `md/plan-<topic>.md` files from the TODO workflow below and explicitly requested `md/experiments/` analyses.
+  - **Keep `md/` current: fix or flag stale docs on contact.** When consulting `md/`, if a doc contradicts the code or reality, correct it (or tell the user if unsure) — don't silently work around it. When a change makes a doc stale, update or delete that doc in the same commit (per the pre-commit checklist above).
   - Link syntax: always use plain markdown links (`[text](path)`) for cross-references, never bare `@file.md` refs — `@` refs auto-load the target into context every session in Claude Code, while Codex treats them as plain text. When a link climbs out of a subfolder (`../`, `../../`), add a brief locator note like "(at the repo root)".
 - Match the user's own terms in notes, comments, commits, and docs; don't paraphrase, relabel, or "improve" their wording.
 

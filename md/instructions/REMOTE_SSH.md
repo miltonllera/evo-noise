@@ -29,11 +29,11 @@ Keep this inventory and all machine-specific notes here; never create one instru
 
 2. **Pull and verify `HEAD` is the exact pushed commit.** Conflict, dirty tree, or other surprise → STOP and ask.
 
-3. **`uv sync`** to create/update the env.
+3. **`uv sync`** to create/update the env. No `uv` on the remote? Install it (`curl -LsSf https://astral.sh/uv/install.sh | sh`) and re-check `PATH`; if the install fails, ask the user to do it rather than working around it.
 
 4. **Sanity-check the remote before launching** (each is a real failure mode):
    - Any file the job points at (weights, datasets, config paths) exists on the remote — `~` is the REMOTE home, not your laptop's.
-   - The binaries/CLIs it needs are on `PATH` (see PATH gotcha below).
+   - The binaries/CLIs it needs are on `PATH` — check with the same wrapper the launch uses: `$SHELL -ic 'command -v <tool>'` (see PATH gotcha below).
    - Pick a GPU with `nvidia-smi` (see GPU selection below); `htop` / `free -h` for CPU/RAM.
 
 5. **Launch in a descriptively-named tmux session** so it survives disconnects, then **confirm it started**. Once confirmed, return to the local checkout, set the experiment row's `server` to `<machine> (tmux <name>)` and `status` to `RUNNING`, then commit and push. When the process ends, set `COMPLETED`, `FAILED`, or `ABORTED` from execution state; do not write analysis.
@@ -48,8 +48,9 @@ ssh <machine>
 cd ~/<repo>                                      # always the GitHub repo name; not there? STOP, ask
 git remote get-url origin                        # must be this repo's GitHub SSH URL
 git pull --ff-only                               # conflict/surprise? STOP, ask
-uv sync                                          # no uv? STOP, ask
-tmux new -d -s <name> "zsh -ic 'set -a; source .env; set +a; CUDA_VISIBLE_DEVICES=<gpu> uv run <command> > <name>.log 2>&1'"
+command -v uv || curl -LsSf https://astral.sh/uv/install.sh | sh   # install fails? ask the user
+uv sync
+tmux new -d -s <name> "$SHELL -ic 'set -a; source .env; set +a; CUDA_VISIBLE_DEVICES=<gpu> uv run <command> > <name>.log 2>&1'"
 sleep 10; tmux has-session -t <name> && tail -n 50 <name>.log   # confirm it started; re-check in a minute
 # reattach: tmux attach -t <name>  ·  detach: Ctrl-b d  ·  stop: tmux kill-session -t <name>
 
@@ -73,6 +74,8 @@ rsync -avz <machine>:~/<repo>/results/<id>/ results/<id>/
 - **One tmux session per job**, named for what it runs (`train-baseline`, `eval-sweep`). Separate jobs on separate GPUs run concurrently — the point of a multi-GPU box.
 - **Redirect to a log (`> log 2>&1`), never `tee`:** with `| tee log` the shell reports `tee`'s exit code, so a crash looks like success (exit 0).
 
-## PATH gotcha — launch from an interactive shell
+## PATH gotcha — one wrapper for everything
 
-User-installed tools (uv-tool binaries, custom CLIs) are often only on the **interactive** shell PATH (from `~/.zshrc` / `~/.bashrc`). A non-interactive `ssh <machine> 'bash -lc …'` may not see them — so launch from inside the tmux pane (interactive shell) or via `zsh -ic`, never `bash -lc`, or subprocess-spawned binaries won't be found. This is why the launch block above wraps the command in `zsh -ic` — a bare `tmux new -d '<cmd>'` runs through non-interactive `sh` and would miss them too.
+Run every remote command — launches and checks alike — through **`$SHELL -ic '<cmd>'`**. User-installed tools (uv-tool binaries, custom CLIs) are often only on the **interactive** shell PATH (from `~/.zshrc` / `~/.bashrc`), and `-ic` is what loads those rc files; `$SHELL` picks each machine's actual shell, so the same line works everywhere. A bare `tmux new -d '<cmd>'` or `ssh <machine> '<cmd>'` skips the rc files and won't find those tools — that's a fact about the missing wrapper, not about the machine.
+
+Interactive rcs may print banners or escape codes on any machine; match command output by substring, not exact equality.

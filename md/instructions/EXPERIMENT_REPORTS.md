@@ -10,7 +10,9 @@ The report behaves like a local W&B dashboard: it presents recorded configs, met
 figures, artifacts, and computed comparisons without interpreting them. It contains no
 verdict, conclusion, recommendation, causal claim, or qualitative judgement such as one
 condition being “better” or “worse.” Captions describe what is shown and, when useful, how it
-was computed.
+was computed. When a report covers a batch or sweep of runs, the sticky filter menu at the
+top includes a control for how many to display, defaulting to the top few — what they are
+ranked by and the default count are agreed in the interview below.
 
 ## Source and ownership
 
@@ -36,17 +38,25 @@ uses the repo’s existing generator, and writes `results/<id>/report.html`. If 
 exists, it offers to vendor its versioned starter into `scripts/` after the user supplies the
 project specifics below.
 
-The expected generator has one shared core/template, reusable section builders, and optional
-thin per-experiment manifests. Derived figures and animations are rendered from recorded
-data; files are embedded only when the file itself is experimental evidence and its digest
-was recorded.
+The generator has one shared core/template, reusable section builders, and thin
+per-experiment manifests. Section builders stay generic; which ones an experiment uses, on
+which data and with which settings, is declared in its manifest. When an experiment needs
+new content: use an existing function if it already fits; extend one only when the extension
+provably leaves its output for existing manifests unchanged (new optional parameter, current
+default); otherwise write a new function. Older reports must stay regenerable without
+re-testing them after every change. Derived figures and animations are rendered from
+recorded data; a file is embedded directly only when the run wrote it and logged its sha256
+in the `run.db` artifacts table (see
+[`EXPERIMENT_TRACKING_SQLITE.md`](EXPERIMENT_TRACKING_SQLITE.md)) — anything without that
+record is not evidence.
 
 Before the project’s first report, ask the user:
 
 - Which factors are toggleable, and which are single-select?
 - Which metric is primary and which are secondary?
-- What standard figures should every report show?
+- Which figures and sections belong in every report, and which to single experiments?
 - What project-specific units or number formatting apply?
+- For batches or sweeps of runs, what are the top results ranked by, and how many show by default?
 
 ## Project specifics
 
