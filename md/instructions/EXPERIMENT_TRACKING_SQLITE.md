@@ -50,9 +50,10 @@ fails, it degrades (offline → disabled) while the authoritative DB on disk is 
 A concrete shape this typically takes:
 
 - Each run writes `results/<id>/<run_id>/run.db` (SQLite) as the canonical store — one
-  folder per experiment, one subdirectory per run inside it — with tables for
-  run metadata/config, per-step metrics, per-item state, and an optional gated full
-  input/output trace. Run metadata includes the git commit hash of the code at launch,
+  folder per experiment, one subdirectory per run inside it; every run of a batch or sweep
+  is kept and fetched, none dropped for ranking low (showing a subset is the report's job)
+  — with tables for run metadata/config, per-step metrics, per-item state, and an optional
+  gated full input/output trace. Run metadata includes the git commit hash of the code at launch,
   stamped by the launcher; a stamped copy of the config sits beside the DB.
 - **Runs that write files** (images, media, checkpoints) also record each file's relative
   path and sha256 digest in an artifacts table. Downstream projections — reports above
@@ -64,6 +65,18 @@ A concrete shape this typically takes:
   from memory as the run finishes; a **backfill** rebuilds byte-identical rows by reading
   `run.db` back and replaying them to the tracker — proving the dashboard is a pure
   projection of the DB.
+
+## What to record, at what precision
+
+Decided at definition time, with the experiment's purpose. What reproduces a run — weights,
+config, seeds, inputs — and what is computed on — metrics, summaries — is recorded at full
+precision; these are small. Bulk state kept to be looked at (rollouts, trajectories,
+per-item states) is what costs: for an exploratory sweep record a viewing subset (a few
+initial conditions, every k-th frame, one split) at viewing precision (`uint8` with its
+scaling, or `float16`); for a definitive run record it all. Compress bulk arrays regardless
+(no information lost), and store inputs shared by every run — a ground truth, a target —
+once per campaign, referenced by digest. A full-length re-evaluation of a chosen run is a
+run of its own. Nothing recorded is deleted afterwards; the choice is made before launch.
 
 > Scaling note: if runs grow very large (≳1 GB) or you need compression, look into transparent page-level compression (`sqlite-zstd`), Parquet export for archival, and DuckDB as an analytics overlay over the SQLite/Parquet files.
 

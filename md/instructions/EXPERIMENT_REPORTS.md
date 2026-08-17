@@ -10,15 +10,20 @@ The report behaves like a local W&B dashboard: it presents recorded configs, met
 figures, artifacts, and computed comparisons without interpreting them. It contains no
 verdict, conclusion, recommendation, causal claim, or qualitative judgement such as one
 condition being “better” or “worse.” Captions describe what is shown and, when useful, how it
-was computed. When a report covers a batch or sweep of runs, the sticky filter menu at the
-top includes a control for how many to display, defaulting to the top few — what they are
-ranked by and the default count are agreed in the interview below.
+was computed. The sticky bar has two kinds of controls: *control parameters* — recorded
+settings the reader switches between, chosen with the user (the config offers candidates,
+not the answer) — and *view options* (runs shown, y scale, notation …), which never filter
+data. Every value of every control parameter shows its full result; anything not recorded is
+marked so. Every run has its own card with its full recorded record; anything that stands for
+a run — a curve, its legend entry, its table row — leads to that card, and the card back to
+its curves; per-run facts are shown per run, never summarised at campaign level. "Runs shown"
+limits how many cards are on screen, not what a card holds.
 
 ## Source and ownership
 
 | layer | owns | never contains |
 |---|---|---|
-| `results/<id>/<run_id>/run.db` | recorded observations at full precision | hand-edited results |
+| `results/<id>/<run_id>/run.db` | recorded observations, at the precision recorded | hand-edited results |
 | `results/<id>/report.html` | figures, interactive comparisons, numeric tables | scientific interpretation |
 
 The report depends only on `run.db`, digest-recorded artifacts, the experiment config, and
@@ -29,7 +34,8 @@ topology and contains no conclusions.
 
 Nothing in `results/` is tracked. Reports are regenerated, never hand-written or committed,
 and no number is retyped into them. Building a report never edits results or runs experiment
-code; missing evidence produces an explicit skipped item.
+code; anything not recorded produces an explicit skipped item. Recorded media is linked
+from `results/<id>/`, never copied into the page.
 
 ## Generator
 
@@ -44,7 +50,8 @@ which data and with which settings, is declared in its manifest.
 
 **The manifest is authored at definition time** — `scripts/reports/<id>.py`, with
 `configs/<id>.yaml` and the `PLANNED` row in `EXPERIMENTS.md`, same id. It declares
-structure (factors, single-select ones, figure set, sections), never expected results.
+structure (control parameters, view options, ranking, figures, sections), never expected
+results; the run must record whatever it names or shows — checked before launch.
 `generate-report` runs the generator; it does not author manifests — a tracked file. A
 missing manifest is a definition gap the project defaults must not paper over (records that
 don't match them render a page with no runs), so the report request stops there and the
@@ -62,11 +69,11 @@ record is not evidence.
 
 Before the project’s first report, ask the user:
 
-- Which factors are toggleable, and which are single-select?
+- Which control parameters, and which are single-select?
+- Which view options; what are runs ranked by, and how many show by default?
 - Which metric is primary and which are secondary?
 - Which figures and sections belong in every report, and which to single experiments?
 - What project-specific units or number formatting apply?
-- For batches or sweeps of runs, what are the top results ranked by, and how many show by default?
 
 ## Project specifics
 
