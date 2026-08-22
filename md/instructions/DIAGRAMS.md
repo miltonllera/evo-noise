@@ -4,13 +4,13 @@ Each plan carries a standing `mermaid` diagram, embedded next to the content it 
 
 ## The three diagrams
 
-- **RESEARCH.md — research plan**: a question tree grouped in phase subgraphs. Phases are `subgraph` boxes linked in sequence; inside them, research questions branch into the experiment groups that answer them.
-- **EXPERIMENTS.md — experiments map**: a DAG of concrete experiment ids. An edge means “motivated/unlocked” and may state why the child experiment was launched; it never states or infers a finding. Node style mirrors execution status: `PLANNED` → `:::queued`, `RUNNING` → `:::wip`, and `COMPLETED`/`FAILED`/`ABORTED` → `:::done`.
-- **TODO.md — implementation roadmap** (top of the `Implementation` section): a left-to-right flowchart of features/components in dependency order, at a coarser grain than the bullets (feature-level nodes, not sub-tasks).
+- **RESEARCH.md, research plan**: a question tree grouped in phase subgraphs. Phases are `subgraph` boxes linked in sequence; inside them, research questions branch into the experiment groups that answer them.
+- **EXPERIMENTS.md, experiments map**: a DAG of concrete experiment ids. An edge means “motivated/unlocked” and may state why the child experiment was launched; it never states or infers a finding. Node style mirrors execution status: `PLANNED` → `:::queued`, `RUNNING` → `:::wip`, and `COMPLETED`/`FAILED`/`ABORTED` → `:::done`.
+- **TODO.md, implementation roadmap** (top of the `Implementation` section): a left-to-right flowchart of features/components in dependency order, at a coarser grain than the bullets (feature-level nodes, not sub-tasks).
 
 ## Conventions
 
-- **Status classes**, mirroring TODO notation `[x]` / `[~]` / `[ ]` — copy this snippet verbatim into every diagram so they all look alike:
+- **Status classes**, mirroring TODO notation `[x]` / `[~]` / `[ ]`. Copy this snippet verbatim into every diagram so they all look alike:
   ```
   classDef done fill:#1a7f37,color:#fff
   classDef wip fill:#d4a72c,color:#000

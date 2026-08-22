@@ -2,7 +2,7 @@
 
 Each experiment may have a single neutral HTML results view at
 `results/<id>/report.html`, beside its run directories. It is generated from recorded results
-only when the user explicitly asks for a report—for example, “generate the report for
+only when the user explicitly asks for a report, for example “generate the report for
 `<id>`” or `$generate-report <id>`. Experiment completion and result fetching do not generate
 it automatically.
 
@@ -10,12 +10,12 @@ The report behaves like a local W&B dashboard: it presents recorded configs, met
 figures, artifacts, and computed comparisons without interpreting them. It contains no
 verdict, conclusion, recommendation, causal claim, or qualitative judgement such as one
 condition being “better” or “worse.” Captions describe what is shown and, when useful, how it
-was computed. The sticky bar has two kinds of controls: *control parameters* — recorded
+was computed. The sticky bar has two kinds of controls: *control parameters*, recorded
 settings the reader switches between, chosen with the user (the config offers candidates,
-not the answer) — and *view options* (runs shown, y scale, notation …), which never filter
+not the answer), and *view options* (runs shown, y scale, notation …), which never filter
 data. Every value of every control parameter shows its full result; anything not recorded is
 marked so. Every run has its own card with its full recorded record; anything that stands for
-a run — a curve, its legend entry, its table row — leads to that card, and the card back to
+a run (a curve, its legend entry, its table row) leads to that card, and the card back to
 its curves; per-run facts are shown per run, never summarised at campaign level. "Runs shown"
 limits how many cards are on screen, not what a card holds.
 
@@ -48,11 +48,11 @@ The generator has one shared core/template, reusable section builders, and thin
 per-experiment manifests. Section builders stay generic; which ones an experiment uses, on
 which data and with which settings, is declared in its manifest.
 
-**The manifest is authored at definition time** — `scripts/reports/<id>.py`, with
+**The manifest is authored at definition time**: `scripts/reports/<id>.py`, with
 `configs/<id>.yaml` and the `PLANNED` row in `EXPERIMENTS.md`, same id. It declares
 structure (control parameters, view options, ranking, figures, sections), never expected
-results; the run must record whatever it names or shows — checked before launch.
-`generate-report` runs the generator; it does not author manifests — a tracked file. A
+results; the run must record whatever it names or shows, checked before launch.
+`generate-report` runs the generator; it does not author manifests, a tracked file. A
 missing manifest is a definition gap the project defaults must not paper over (records that
 don't match them render a page with no runs), so the report request stops there and the
 manifest is added as its own, user-authorized change.
@@ -64,7 +64,7 @@ default); otherwise write a new function. Older reports must stay regenerable wi
 re-testing them after every change. Derived figures and animations are rendered from
 recorded data; a file is embedded directly only when the run wrote it and logged its sha256
 in the `run.db` artifacts table (see
-[`EXPERIMENT_TRACKING_SQLITE.md`](EXPERIMENT_TRACKING_SQLITE.md)) — anything without that
+[`EXPERIMENT_TRACKING_SQLITE.md`](EXPERIMENT_TRACKING_SQLITE.md)); anything without that
 record is not evidence.
 
 Before the project’s first report, ask the user:

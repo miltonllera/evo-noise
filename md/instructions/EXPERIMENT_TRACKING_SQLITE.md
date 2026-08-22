@@ -1,8 +1,8 @@
 # Tracking experiments with SQLite
 
 A reusable pattern for recording experiment results so the **on-disk record is the
-single source of truth** and every visualization — local plots or a dashboard render
-— is a **regenerable projection** of it, never the source.
+single source of truth** and every visualization (local plots or a dashboard render)
+is a **regenerable projection** of it, never the source.
 
 ## The idea in one line
 
@@ -16,7 +16,7 @@ everything visual is cheap to regenerate.
 - **A `.npy`/`.npz` dump freezes one view.** It captures the exact arrays you happened
   to need for one plot. Want a different slice, a fixed metric, or a new chart later?
   You re-run the experiment. A queryable DB lets you `SELECT` any slice after the fact,
-  so a new visualization is a new query — not a new run.
+  so a new visualization is a new query, not a new run.
 - **numpy buffers in memory and dumps at the end** → a crash mid-run loses everything.
   SQLite `INSERT`s transactionally as the run progresses, so a crashed long run still
   leaves a valid, partial, queryable record.
@@ -33,7 +33,7 @@ everything visual is cheap to regenerate.
 ## The procedure: regenerate any visualization by reading the DB
 
 1. **Write once.** During the run, the producer `INSERT`s every observation into a
-   SQLite file (one DB per run) as it happens — config, per-step metrics, per-item
+   SQLite file (one DB per run) as it happens: config, per-step metrics, per-item
    state, optional full traces.
 2. **Read back to visualize.** To draw a plot, build the numpy arrays *on demand* from
    a `SELECT`, then hand them to matplotlib/your renderer. To push to a dashboard, read
@@ -49,32 +49,32 @@ fails, it degrades (offline → disabled) while the authoritative DB on disk is 
 
 A concrete shape this typically takes:
 
-- Each run writes `results/<id>/<run_id>/run.db` (SQLite) as the canonical store — one
+- Each run writes `results/<id>/<run_id>/run.db` (SQLite) as the canonical store: one
   folder per experiment, one subdirectory per run inside it; every run of a batch or sweep
-  is kept and fetched, none dropped for ranking low (showing a subset is the report's job)
-  — with tables for run metadata/config, per-step metrics, per-item state, and an optional
+  is kept and fetched, none dropped for ranking low (showing a subset is the report's job),
+  with tables for run metadata/config, per-step metrics, per-item state, and an optional
   gated full input/output trace. Run metadata includes the git commit hash of the code at launch,
   stamped by the launcher; a stamped copy of the config sits beside the DB.
 - **Runs that write files** (images, media, checkpoints) also record each file's relative
-  path and sha256 digest in an artifacts table. Downstream projections — reports above
-  all — treat a file without a recorded digest as non-evidence (see
+  path and sha256 digest in an artifacts table. Downstream projections (reports above
+  all) treat a file without a recorded digest as non-evidence (see
   [`EXPERIMENT_REPORTS.md`](EXPERIMENT_REPORTS.md)).
 - The visualization tools open an **existing** `run.db` read-only and rebuild their
-  arrays/frames from it — they never re-run the experiment to draw a plot or GIF.
+  arrays/frames from it; they never re-run the experiment to draw a plot or GIF.
 - The tracker integration has two callers over one code path: the live runner logs rows
   from memory as the run finishes; a **backfill** rebuilds byte-identical rows by reading
-  `run.db` back and replaying them to the tracker — proving the dashboard is a pure
+  `run.db` back and replaying them to the tracker, proving the dashboard is a pure
   projection of the DB.
 
 ## What to record, at what precision
 
-Decided at definition time, with the experiment's purpose. What reproduces a run — weights,
-config, seeds, inputs — and what is computed on — metrics, summaries — is recorded at full
+Decided at definition time, with the experiment's purpose. What reproduces a run (weights,
+config, seeds, inputs) and what is computed on (metrics, summaries) is recorded at full
 precision; these are small. Bulk state kept to be looked at (rollouts, trajectories,
 per-item states) is what costs: for an exploratory sweep record a viewing subset (a few
 initial conditions, every k-th frame, one split) at viewing precision (`uint8` with its
 scaling, or `float16`); for a definitive run record it all. Compress bulk arrays regardless
-(no information lost), and store inputs shared by every run — a ground truth, a target —
+(no information lost), and store inputs shared by every run (a ground truth, a target)
 once per campaign, referenced by digest. A full-length re-evaluation of a chosen run is a
 run of its own. Nothing recorded is deleted afterwards; the choice is made before launch.
 
